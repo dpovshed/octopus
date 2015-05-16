@@ -1,0 +1,35 @@
+---
+target:
+  # use local or remote target resource in either 'xml' or 'txt' format.
+  file: http://d7.local.127.0.0.1.xip.io/sitemap.xml
+  #file: broken.txt
+  type: xml
+
+# All the received data might be written to disk if needed.
+#   - mode: save/count
+#   - destination: ~/save-to-some-dir if needed.
+#   - broken: if turned on write list of failed URL to file.
+output:
+  mode: save
+  destination: /tmp
+  broken: true
+
+# Delay after spawning requests in microseconds
+delay:
+  min: 0
+  max: 0
+
+# How often update current statistics
+timer_ui: 0.25
+# How often spawn new checking request
+timer_queue: 0.007
+
+dns_resolver: 8.8.4.4
+# be careful selecting very large value here. Value between 10-50 usually
+#   brings enough speed and fun.
+concurrency: 12
+# type of the request, 'GET'/'HEAD'. With HEAD saving data is not possible.
+request_type: 'HEAD'
+# Percentage of re-issuing the same request after successful completion, can
+#   be used for stress-testing.
+bonus_respawn: 0

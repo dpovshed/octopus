@@ -1,0 +1,14 @@
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/swt83/php-yaml.git"
+    }
+  ],
+  "require": {
+    "react/react": "0.4.*",
+    "travis/yaml": "*"
+  },
+  "prefer-stable": true,
+  "minimum-stability": "dev"
+}
