@@ -30,6 +30,7 @@ class Processor {
 
   // PHPReact core objects.
   private $dnsResolver;
+  /* @var \React\HttpClient\Client $client */
   private $client;
   /* @var \React\EventLoop\LibEventLoop $loop (?) */
   private $loop;
@@ -89,7 +90,7 @@ class Processor {
   public function spawn($id, $url) {
     $requestType = self::$config->requestType;
     /** @var \React\HttpClient\Request $request ; */
-    $request = $this->client->request($requestType, $url);
+    $request = $this->client->request($requestType, $url, ['User-Agent' => 'Octopus/1.0']);
     $request->octoUrl = $url;
     $request->octoId = $id;
     $request->on('response', function ($response, $req) {
