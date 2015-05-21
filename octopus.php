@@ -36,7 +36,6 @@ while ($targets->countQueue()) {
 }
 
 echo PHP_EOL . PHP_EOL . "Results:" . PHP_EOL;
-//ksort(Octopus\Processor::$statCodes);
 ksort($processor::$statCodes);
 foreach ($processor::$statCodes as $code => $count) {
   echo $code . ': ' . $count . PHP_EOL;

@@ -80,7 +80,8 @@ class Processor {
       $codeInfo = $codeInfo . $code . ':' . $count . ' ';
     }
 
-    echo sprintf("%6.2f sec. Queued/running/done: %d/%d/%d. Stats: %s           \r",
+    echo sprintf(" %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Stats: %s           \r",
+      memory_get_usage(true) / 1048576,
       microtime(true) - self::$started, $countQueue, $countRunning, $countFinished, $codeInfo);
     if (0 === ($countQueue + $countRunning)) {
       $timer->cancel();
@@ -95,6 +96,7 @@ class Processor {
     $request->octoId = $id;
     $request->on('response', function ($response, $req) {
       /** @var \React\HttpClient\Request $req ; */
+      /** @var \React\HttpClient\Response $response ; */
       $response->octoUrl = $req->octoUrl;
       $response->octoId = $req->octoId;
       $response->on('data', "Octopus\\Processor::onData", $response);
