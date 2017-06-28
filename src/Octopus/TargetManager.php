@@ -8,7 +8,7 @@ namespace Octopus;
 class TargetManager
 {
     // Number of simultaneously running tasks.
-  protected $concurrency;
+    protected $concurrency;
     protected $queuedUrls = [];
     protected $runningUrls = [];
     protected $finishedUrls = [];
@@ -27,15 +27,15 @@ class TargetManager
             throw new \Exception(error_get_last()['message']);
         }
         switch ($this->config->targetType) {
-      case 'xml':
-        $mask = "/\<loc\>(.+)\<\/loc\>/miU";
-        break;
-      case 'txt':
-        $mask = "/^\s*((?U).+)\s*$/mi";
-        break;
-      default:
-        throw new \Exception("Unsupported file type: {$this->config->targetType}");
-    }
+            case 'xml':
+                $mask = "/\<loc\>(.+)\<\/loc\>/miU";
+                break;
+            case 'txt':
+                $mask = "/^\s*((?U).+)\s*$/mi";
+                break;
+            default:
+                throw new \Exception("Unsupported file type: {$this->config->targetType}");
+        }
         $matches = [];
         if (!preg_match_all($mask, $data, $matches)) {
             throw new \Exception("No URL entries found");
@@ -62,22 +62,22 @@ class TargetManager
         return max(array_keys($this->queuedUrls));
     }
 
-  /**
-   * This one normally used for relaunching.
-   * @param $id
-   */
-  public function launch($id)
-  {
-      $this->runningUrls[$id] = $this->queuedUrls[$id];
-      unset($this->queuedUrls[$id]);
-  }
-
     public function launchNext()
     {
         assert($this->queuedUrls, "Cannot launch, nothing in queue!");
         list($id, $url) = each($this->queuedUrls);
         $this->launch($id);
         return [$id, $url];
+    }
+
+    /**
+     * This one normally used for relaunching.
+     * @param $id
+     */
+    public function launch($id)
+    {
+        $this->runningUrls[$id] = $this->queuedUrls[$id];
+        unset($this->queuedUrls[$id]);
     }
 
     public function launchAny()
@@ -89,16 +89,6 @@ class TargetManager
         return [$id, $url];
     }
 
-    public function countQueue()
-    {
-        return count($this->queuedUrls);
-    }
-
-    public function countRunning()
-    {
-        return count($this->runningUrls);
-    }
-
     public function countFinished()
     {
         return count($this->finishedUrls);
@@ -107,5 +97,15 @@ class TargetManager
     public function getFreeSlots()
     {
         return min($this->concurrency - $this->countRunning(), $this->countQueue());
+    }
+
+    public function countRunning()
+    {
+        return count($this->runningUrls);
+    }
+
+    public function countQueue()
+    {
+        return count($this->queuedUrls);
     }
 }

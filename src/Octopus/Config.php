@@ -34,7 +34,7 @@ class Config
         $this->values['spawnDelayMin'] = $yaml['delay']['min'];
         $this->values['spawnDelayMax'] = $yaml['delay']['max'];
         assert($this->values['spawnDelayMax'] >= $this->values['spawnDelayMin'],
-      "Misconfigured: check spawn delay numbers");
+            "Misconfigured: check spawn delay numbers");
         $this->values['dnsResolver'] = $yaml['dns_resolver'];
         $this->values['concurrency'] = $yaml['concurrency'];
         $this->values['requestType'] = $yaml['request_type'];
