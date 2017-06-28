@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Octopus;
 
+use Exception;
+
 /**
  * Define all aspects of managing list and states of target URLs.
  *
@@ -26,9 +28,9 @@ class TargetManager
 
     public function populate(): void
     {
-        echo 'Loading destination URLs...' . PHP_EOL;
+        echo 'Loading destination URLs from ' . $this->config->targetFile . PHP_EOL;
         if (!($data = @file_get_contents($this->config->targetFile))) {
-            throw new \Exception(error_get_last()['message']);
+            throw new Exception(error_get_last()['message']);
         }
         switch ($this->config->targetType) {
             case 'xml':
@@ -38,11 +40,11 @@ class TargetManager
                 $mask = "/^\s*((?U).+)\s*$/mi";
                 break;
             default:
-                throw new \Exception("Unsupported file type: {$this->config->targetType}");
+                throw new Exception("Unsupported file type: {$this->config->targetType}");
         }
         $matches = [];
         if (!preg_match_all($mask, $data, $matches)) {
-            throw new \Exception('No URL entries found');
+            throw new Exception('No URL entries found');
         }
         $this->queuedUrls = $matches[1];
         echo count($this->queuedUrls) . ' target URLs set' . PHP_EOL;
