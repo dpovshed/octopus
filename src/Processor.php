@@ -1,11 +1,19 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Octopus;
 
-use \React\HttpClient\Response;
-use \React\HttpClient\Request;
+use React\Dns\Resolver\Factory as DnsResolverFactory;
+use React\Dns\Resolver\Resolver as DnsResolver;
+use React\EventLoop\Factory as EventLoopFactory;
+use React\EventLoop\LibEventLoop;
+use React\HttpClient\Client as HttpClient;
+use React\HttpClient\Factory as HttpClientFactory;
+use React\HttpClient\Request;
+use React\HttpClient\Response;
+
+use Exception;
 
 /**
  * Processor core.
@@ -23,6 +31,7 @@ class Processor
 
     /**
      * Currently running requests.
+     *
      * @todo: probably move to TargetManager
      *
      * @var array
@@ -32,36 +41,54 @@ class Processor
     /**
      * @var TargetManager $targets
      */
-    protected static $targets;
+    private static $targets;
 
     /**
      * @var array
      */
-    protected static $redirects = [301, 302, 303, 307, 308];
-    protected static $saveEnabled;
+    private static $redirects = [301, 302, 303, 307, 308];
+
+    /**
+     * @var bool
+     */
+    private static $saveEnabled;
 
     /**
      * to use with configuration elements
      */
-    protected static $savePath;
+    private static $savePath;
 
     /**
      * Just to track execution time.
+     *
+     * @var Config
      */
     private static $config;
-    private static $started;
-    protected $requests = [];
 
-    // PHPReact core objects.
+    /**
+     * Timestamp when we started processing.
+     *
+     * @var float
+     */
+    private static $started;
+
+    /**
+     * @var array
+     */
+    private $requests = [];
+
+    /**
+     * @var DnsResolver
+     */
     private $dnsResolver;
 
     /**
-     * @var \React\HttpClient\Client $client
+     * @var HttpClient $client
      */
     private $client;
 
     /**
-     * @var \React\EventLoop\LibEventLoop
+     * @var LibEventLoop
      */
     private $loop;
 
@@ -69,10 +96,11 @@ class Processor
     {
         self::$targets = $targets;
         self::$config = $config;
-        if ((self::$saveEnabled = $config->outputMode == 'save') || ($config->outputBroken)) {
-            self::$savePath = $config->outputDestination . '/';
-            if (!mkdir(self::$savePath)) {
-                throw new \Exception("Cannot create output directory: " . self::$savePath);
+        self::$saveEnabled = $config->outputMode === 'save';
+        if (self::$saveEnabled || $config->outputBroken) {
+            self::$savePath = $config->outputDestination . DIRECTORY_SEPARATOR;
+            if (!@mkdir(self::$savePath) && !is_dir(self::$savePath)) {
+                throw new Exception('Cannot create output directory: ' . self::$savePath);
             }
         }
     }
@@ -83,14 +111,20 @@ class Processor
         $countRunning = self::$targets->countRunning();
         $countFinished = self::$targets->countFinished();
 
-        $codeInfo = '';
+        $codeInfo = array();
         foreach (self::$statCodes as $code => $count) {
-            $codeInfo = $codeInfo . $code . ':' . $count . ' ';
+            $codeInfo[] = sprintf('%s: %d', $code, $count);
         }
 
         echo sprintf(" %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Stats: %s           \r",
             memory_get_usage(true) / 1048576,
-            microtime(true) - self::$started, $countQueue, $countRunning, $countFinished, $codeInfo);
+            microtime(true) - self::$started,
+            $countQueue,
+            $countRunning,
+            $countFinished,
+            implode(' ', $codeInfo)
+        );
+
         if (0 === ($countQueue + $countRunning)) {
             $timer->cancel();
         }
@@ -98,38 +132,53 @@ class Processor
 
     public static function onData($data, Response $response): void
     {
+       self::countAdditionalHeaders($response->getHeaders());
+
         if (self::$saveEnabled) {
-            $path = self::$savePath . self::makeFilename($response->octoUrl, $response->octoId);
+            $path = self::$savePath . self::makeFilename($response->octopusUrl, $response->octopusId);
             if (file_put_contents($path, $data, FILE_APPEND) === false) {
-                throw new \Exception("Cannot write file: $path");
+                throw new Exception("Cannot write file: $path");
             }
         }
         self::$totalData += strlen($data);
     }
 
-    public static function makeFilename($octoUrl, $octoId): string
+    private static function countAdditionalHeaders(array $headers): void
     {
-        return preg_replace("/[^a-zA-Z0-9]/", '_', $octoUrl . '_____' . $octoId);
+        $consideredHeaders = array(
+            'CF-Cache-Status',
+        );
+
+        foreach($consideredHeaders as $consideredHeader){
+            if (isset($headers[$consideredHeader])) {
+                $headerLabel = sprintf('%s (%s)', $consideredHeader, $headers[$consideredHeader]);
+                self::$statCodes[$headerLabel] = isset(self::$statCodes[$headerLabel]) ? self::$statCodes[$headerLabel] + 1 : 1;
+            }
+        }
+
     }
 
-    public static function onRequestError(\Exception $e): void
+    public static function makeFilename(string $octopusUrl, int $octopusId): string
     {
-        /** @var \React\HttpClient\Request $request */
-        $request = func_get_arg(1);
-        self::$statCodes['failed']++;
-        self::$targets->done($request->octoId);
-        self::$brokenUrls[$request->octoUrl] = 'fail';
-        echo $request->octoUrl . " request error: " . $e->getMessage() . PHP_EOL;
+        return preg_replace('/[^a-zA-Z0-9]/', '_', $octopusUrl . '_____' . $octopusId);
     }
 
-    public static function onResponseError(\Exception $e): void
+    public static function onRequestError(Exception $e, Request $request): void
     {
-        /** @var \React\HttpClient\Response $response */
-        $response = func_get_arg(1);
         self::$statCodes['failed']++;
-        self::$targets->done($response->octoId);
-        self::$brokenUrls[$response->octoUrl] = 'fail';
-        echo $response->octoUrl . " response error: " . $e->getMessage() . PHP_EOL;
+        self::$targets->done($request->octopusId);
+        self::$brokenUrls[$request->octopusUrl] = 'fail';
+
+        echo $request->octopusUrl . ' request error: ' . $e->getMessage() . PHP_EOL;
+    }
+
+    public static function onResponseError(Exception $e, Response $response): void
+    {
+        self::$statCodes['failed']++;
+        self::$targets->done($response->octopusId);
+        self::$brokenUrls[$response->octopusUrl] = 'fail';
+
+        echo $response->octopusUrl . ' response error: ' . $e->getMessage() . PHP_EOL;
     }
 
     public static function onEnd($data, Response $response): void
@@ -137,25 +186,25 @@ class Processor
         $doBonus = random_int(0, 100) < self::$config->bonusRespawn;
         $code = $response->getCode();
         self::$statCodes[$code] = isset(self::$statCodes[$code]) ? self::$statCodes[$code] + 1 : 1;
-        self::$targets->done($response->octoId);
+        self::$targets->done($response->octopusId);
         if (in_array($code, self::$redirects, true)) {
             $headers = $response->getHeaders();
             self::$targets->add($headers['Location']);
         } // Any 2xx code is 'success' for us.
         elseif ((int)($code / 100) !== 2) {
-            self::$brokenUrls[$response->octoUrl] = $code;
+            self::$brokenUrls[$response->octopusUrl] = $code;
         } elseif ($doBonus) {
-            self::$targets->add($response->octoUrl);
+            self::$targets->add($response->octopusUrl);
         }
     }
 
     public function warmUp(): void
     {
-        $this->loop = \React\EventLoop\Factory::create();
+        $this->loop = EventLoopFactory::create();
 
-        $dnsResolverFactory = new \React\Dns\Resolver\Factory();
+        $dnsResolverFactory = new DnsResolverFactory();
         $this->dnsResolver = $dnsResolverFactory->createCached(self::$config->dnsResolver, $this->loop);
-        $factory = new \React\HttpClient\Factory();
+        $factory = new HttpClientFactory();
         $this->client = $factory->create($this->loop, $this->dnsResolver);
     }
 
@@ -185,20 +234,24 @@ class Processor
     public function spawn($id, $url): void
     {
         $requestType = self::$config->requestType;
-        $request = $this->client->request($requestType, $url, ['User-Agent' => 'Octopus/1.0']);
-        $request->octoUrl = $url;
-        $request->octoId = $id;
+        $headers = [
+            //'User-Agent' => 'Octopus/1.0',
+            'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        ];
+        $request = $this->client->request($requestType, $url, $headers);
+        $request->octopusUrl = $url;
+        $request->octopusId = $id;
         $request->on('response', function (Response $response, Request $req) {
-            $response->octoUrl = $req->octoUrl;
-            $response->octoId = $req->octoId;
-            $response->on('data', "Octopus\\Processor::onData", $response);
-            $response->on('end', "Octopus\\Processor::onEnd");
-            $response->on('error', "Octopus\\Processor::onResponseError");
+            $response->octopusUrl = $req->octopusUrl;
+            $response->octopusId = $req->octopusId;
+            $response->on('data', 'Octopus\\Processor::onData');
+            $response->on('end', 'Octopus\\Processor::onEnd');
+            $response->on('error', 'Octopus\\Processor::onResponseError');
         });
-        $request->on('error', "Octopus\\Processor::onRequestError");
+        $request->on('error', 'Octopus\\Processor::onRequestError');
         try {
             $request->end();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             echo 'Problem of sending request: ' . $e->getMessage() . PHP_EOL;
         }
 

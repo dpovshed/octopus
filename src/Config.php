@@ -4,10 +4,20 @@ declare(strict_types=1);
 
 namespace Octopus;
 
+use Exception;
+
 /**
  * Define configuration storage.
  *
  * @package Octopus
+ *
+ * @property int $bonusRespawn Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
+ * @property string $outputDestination Either 'save' or 'count'
+ * @property string $outputMode
+ * @property bool $outputBroken
+ * @property int $spawnDelayMax
+ * @property int $spawnDelayMin
+ * @property string $requestType Either 'GET' or 'HEAD'
  */
 class Config
 {
@@ -21,12 +31,12 @@ class Config
     public function loadDefaults(): void
     {
         if (function_exists('yaml_parse_file')) {
-            $yaml = yaml_parse_file("./octopus.yml");
+            $yaml = yaml_parse_file('./octopus.yml');
         } else {
-            $yaml = \Travis\YAML::from_file("./octopus.yml")->to_array();
+            $yaml = \Travis\YAML::from_file('./octopus.yml')->to_array();
         }
         if (!$yaml) {
-            throw new \Exception(error_get_last()['message']);
+            throw new Exception(error_get_last()['message']);
         }
         $this->values['targetFile'] = $yaml['target']['file'];
         $this->values['targetType'] = $yaml['target']['type'];
@@ -50,7 +60,7 @@ class Config
     public function __get($key)
     {
         if (!isset($this->values[$key])) {
-            throw new \Exception(__METHOD__ . ': undefined parameter ' . $key);
+            throw new Exception(__METHOD__ . ': undefined parameter ' . $key);
         }
         return $this->values[$key];
     }
