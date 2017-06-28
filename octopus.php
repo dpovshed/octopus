@@ -5,16 +5,17 @@
  */
 
 /* @var \Composer\Autoload\ClassLoader $loader; */
-require 'vendor/autoload.php';
+$loader = require __DIR__ . '/vendor/autoload.php';
 
+/*
 require_once "Octopus/Config.php";
 require_once "Octopus/Result.php";
 require_once "Octopus/Handlers.php";
 require_once "Octopus/Processor.php";
 require_once "Octopus/TargetManager.php";
+*/
 
 $config = new Octopus\Config;
-
 $result = new Octopus\Result;
 $handlers = new Octopus\Handlers($config, $result);
 $targets = new Octopus\TargetManager($config, $result);
