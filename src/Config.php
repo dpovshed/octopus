@@ -15,9 +15,10 @@ use Exception;
  * @property string $outputDestination Either 'save' or 'count'
  * @property string $outputMode
  * @property bool $outputBroken
+ * @property string $requestType Either 'GET' or 'HEAD'
  * @property int $spawnDelayMax
  * @property int $spawnDelayMin
- * @property string $requestType Either 'GET' or 'HEAD'
+ * @property string $targetType Either 'xml' or 'txt'
  */
 class Config
 {
