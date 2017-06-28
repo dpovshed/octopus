@@ -13,12 +13,32 @@ use Exception;
  */
 class TargetManager
 {
-    // Number of simultaneously running tasks.
-    protected $concurrency;
-    protected $queuedUrls = [];
-    protected $runningUrls = [];
-    protected $finishedUrls = [];
-    protected $config;
+    /**
+     * Number of simultaneously running tasks.
+     *
+     * @var int
+     */
+    private $concurrency;
+
+    /**
+     * @var array
+     */
+    private $queuedUrls = [];
+
+    /**
+     * @var array
+     */
+    private $runningUrls = [];
+
+    /**
+     * @var array
+     */
+    private $finishedUrls = [];
+
+    /**
+     * @var Config
+     */
+    private $config;
 
     public function __construct(Config $config, Result $result)
     {
@@ -50,52 +70,65 @@ class TargetManager
         echo count($this->queuedUrls) . ' target URLs set' . PHP_EOL;
     }
 
-    public function add($url): int
+    public function add(string $url): int
     {
         $this->queuedUrls[] = $url;
 
         return max(array_keys($this->queuedUrls));
     }
 
-    public function done($id): void
+    public function done(int $id): void
     {
         $this->finishedUrls[$id] = $this->runningUrls[$id];
         unset($this->runningUrls[$id]);
     }
 
-    public function retry($id): int
+    public function retry(int $id): int
     {
         $this->queuedUrls[] = $this->finishedUrls[$id];
         return max(array_keys($this->queuedUrls));
     }
 
+    /**
+     * Launch the next URL in the queue.
+     *
+     * @return array
+     */
     public function launchNext(): array
     {
-        assert($this->queuedUrls, "Cannot launch, nothing in queue!");
-        list($id, $url) = each($this->queuedUrls);
+        assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
+        $id = key($this->queuedUrls);
+        $url = $this->queuedUrls[$id];
         $this->launch($id);
+
         return [$id, $url];
     }
 
     /**
      * This one normally used for relaunching.
      *
-     * @param $id
+     * @param int $id
      *
      * @return void
      */
-    public function launch($id): void
+    public function launch(int $id): void
     {
         $this->runningUrls[$id] = $this->queuedUrls[$id];
         unset($this->queuedUrls[$id]);
     }
 
+    /**
+     * Launch a random URL from the queue.
+     *
+     * @return array
+     */
     public function launchAny(): array
     {
-        assert($this->queuedUrls, "Cannot launch, nothing in queue!");
+        assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
         $id = array_rand($this->queuedUrls);
         $url = $this->queuedUrls[$id];
         $this->launch($id);
+
         return [$id, $url];
     }
 

@@ -13,6 +13,8 @@ use Symfony\Component\Yaml\Yaml;
  * @package Octopus
  *
  * @property int $bonusRespawn Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
+ * @property int $concurrency
+ * @property string $dnsResolver IP address / host of the DNS Resolver
  * @property string $outputDestination Either 'save' or 'count'
  * @property string $outputMode
  * @property bool $outputBroken

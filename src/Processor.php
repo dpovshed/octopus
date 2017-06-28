@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Octopus;
 
+use Exception;
 use React\Dns\Resolver\Factory as DnsResolverFactory;
 use React\Dns\Resolver\Resolver as DnsResolver;
 use React\EventLoop\Factory as EventLoopFactory;
@@ -12,8 +13,7 @@ use React\HttpClient\Client as HttpClient;
 use React\HttpClient\Factory as HttpClientFactory;
 use React\HttpClient\Request;
 use React\HttpClient\Response;
-
-use Exception;
+use React\EventLoop\Timer\Timer;
 
 /**
  * Processor core.
@@ -22,12 +22,17 @@ use Exception;
  */
 class Processor
 {
-    public static $statCodes = ['failed' => 0];
+    /**
+     * @var array
+     */
+    public $statCodes = ['failed' => 0];
 
     /**
      * Redirects which we able too process.
+     *
+     * @var int
      */
-    public static $totalData = 0;
+    public $totalData = 0;
 
     /**
      * Currently running requests.
@@ -36,41 +41,41 @@ class Processor
      *
      * @var array
      */
-    public static $brokenUrls = [];
-
-    /**
-     * @var TargetManager $targets
-     */
-    private static $targets;
+    public $brokenUrls = [];
 
     /**
      * @var array
      */
-    private static $redirects = [301, 302, 303, 307, 308];
+    private $redirects = [301, 302, 303, 307, 308];
 
     /**
      * @var bool
      */
-    private static $saveEnabled;
+    private $saveEnabled;
 
     /**
      * to use with configuration elements
+     *
+     * @var string
      */
-    private static $savePath;
+    private $savePath;
 
     /**
-     * Just to track execution time.
-     *
      * @var Config
      */
-    private static $config;
+    private $config;
 
     /**
-     * Timestamp when we started processing.
+     * Timestamp to track execution time.
      *
      * @var float
      */
-    private static $started;
+    private $started;
+
+    /**
+     * @var TargetManager $targets
+     */
+    private $targets;
 
     /**
      * @var array
@@ -94,31 +99,31 @@ class Processor
 
     public function __construct(Config $config, TargetManager $targets)
     {
-        self::$targets = $targets;
-        self::$config = $config;
-        self::$saveEnabled = $config->outputMode === 'save';
-        if (self::$saveEnabled || $config->outputBroken) {
-            self::$savePath = $config->outputDestination . DIRECTORY_SEPARATOR;
-            if (!@mkdir(self::$savePath) && !is_dir(self::$savePath)) {
-                throw new Exception('Cannot create output directory: ' . self::$savePath);
+        $this->targets = $targets;
+        $this->config = $config;
+        $this->saveEnabled = $config->outputMode === 'save';
+        if ($this->saveEnabled || $config->outputBroken) {
+            $this->savePath = $config->outputDestination . DIRECTORY_SEPARATOR;
+            if (!@mkdir($this->savePath) && !is_dir($this->savePath)) {
+                throw new Exception('Cannot create output directory: ' . $this->savePath);
             }
         }
     }
 
-    public static function timerStat($timer): void
+    public function timerStat(Timer $timer): void
     {
-        $countQueue = self::$targets->countQueue();
-        $countRunning = self::$targets->countRunning();
-        $countFinished = self::$targets->countFinished();
+        $countQueue = $this->targets->countQueue();
+        $countRunning = $this->targets->countRunning();
+        $countFinished = $this->targets->countFinished();
 
         $codeInfo = array();
-        foreach (self::$statCodes as $code => $count) {
+        foreach ($this->statCodes as $code => $count) {
             $codeInfo[] = sprintf('%s: %d', $code, $count);
         }
 
         echo sprintf(" %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Stats: %s           \r",
             memory_get_usage(true) / 1048576,
-            microtime(true) - self::$started,
+            microtime(true) - $this->started,
             $countQueue,
             $countRunning,
             $countFinished,
@@ -130,32 +135,31 @@ class Processor
         }
     }
 
-    public static function onData($data, Response $response): void
+    public function onData($data, Response $response): void
     {
-       self::countAdditionalHeaders($response->getHeaders());
+        $this->countAdditionalHeaders($response->getHeaders());
 
-        if (self::$saveEnabled) {
-            $path = self::$savePath . self::makeFilename($response->octopusUrl, $response->octopusId);
+        if ($this->saveEnabled) {
+            $path = $this->savePath . self::makeFilename($response->octopusUrl, $response->octopusId);
             if (file_put_contents($path, $data, FILE_APPEND) === false) {
                 throw new Exception("Cannot write file: $path");
             }
         }
-        self::$totalData += strlen($data);
+        $this->totalData += strlen($data);
     }
 
-    private static function countAdditionalHeaders(array $headers): void
+    private function countAdditionalHeaders(array $headers): void
     {
         $consideredHeaders = array(
             'CF-Cache-Status',
         );
 
-        foreach($consideredHeaders as $consideredHeader){
+        foreach ($consideredHeaders as $consideredHeader) {
             if (isset($headers[$consideredHeader])) {
                 $headerLabel = sprintf('%s (%s)', $consideredHeader, $headers[$consideredHeader]);
-                self::$statCodes[$headerLabel] = isset(self::$statCodes[$headerLabel]) ? self::$statCodes[$headerLabel] + 1 : 1;
+                $this->statCodes[$headerLabel] = isset($this->statCodes[$headerLabel]) ? $this->statCodes[$headerLabel] + 1 : 1;
             }
         }
-
     }
 
     public static function makeFilename(string $octopusUrl, int $octopusId): string
@@ -163,38 +167,43 @@ class Processor
         return preg_replace('/[^a-zA-Z0-9]/', '_', $octopusUrl . '_____' . $octopusId);
     }
 
-    public static function onRequestError(Exception $e, Request $request): void
+    public function onRequestError(Exception $e, Request $request): void
     {
-        self::$statCodes['failed']++;
-        self::$targets->done($request->octopusId);
-        self::$brokenUrls[$request->octopusUrl] = 'fail';
+        $this->statCodes['failed']++;
+        $this->targets->done($request->octopusId);
+        $this->brokenUrls[$request->octopusUrl] = 'fail';
 
         echo $request->octopusUrl . ' request error: ' . $e->getMessage() . PHP_EOL;
     }
 
-    public static function onResponseError(Exception $e, Response $response): void
+    public function onResponseError(Exception $e, Response $response): void
     {
-        self::$statCodes['failed']++;
-        self::$targets->done($response->octopusId);
-        self::$brokenUrls[$response->octopusUrl] = 'fail';
+        $this->statCodes['failed']++;
+        $this->targets->done($response->octopusId);
+        $this->brokenUrls[$response->octopusUrl] = 'fail';
 
         echo $response->octopusUrl . ' response error: ' . $e->getMessage() . PHP_EOL;
     }
 
-    public static function onEnd($data, Response $response): void
+    public function onEnd($data, Response $response): void
     {
-        $doBonus = random_int(0, 100) < self::$config->bonusRespawn;
+        $doBonus = random_int(0, 100) < $this->config->bonusRespawn;
         $code = $response->getCode();
-        self::$statCodes[$code] = isset(self::$statCodes[$code]) ? self::$statCodes[$code] + 1 : 1;
-        self::$targets->done($response->octopusId);
-        if (in_array($code, self::$redirects, true)) {
+        $this->statCodes[$code] = isset($this->statCodes[$code]) ? $this->statCodes[$code] + 1 : 1;
+        $this->targets->done($response->octopusId);
+        if (in_array($code, $this->redirects, true)) {
             $headers = $response->getHeaders();
-            self::$targets->add($headers['Location']);
-        } // Any 2xx code is 'success' for us.
-        elseif ((int)($code / 100) !== 2) {
-            self::$brokenUrls[$response->octopusUrl] = $code;
-        } elseif ($doBonus) {
-            self::$targets->add($response->octopusUrl);
+            $this->targets->add($headers['Location']);
+            return;
+        }
+        // Any 2xx code is 'success' for us, if not => failure
+        if ((int)($code / 100) !== 2) {
+            $this->brokenUrls[$response->octopusUrl] = $code;
+            return;
+        }
+
+        if ($doBonus) {
+            $this->targets->add($response->octopusUrl);
         }
     }
 
@@ -203,37 +212,39 @@ class Processor
         $this->loop = EventLoopFactory::create();
 
         $dnsResolverFactory = new DnsResolverFactory();
-        $this->dnsResolver = $dnsResolverFactory->createCached(self::$config->dnsResolver, $this->loop);
+        $this->dnsResolver = $dnsResolverFactory->createCached($this->config->dnsResolver, $this->loop);
+
         $factory = new HttpClientFactory();
         $this->client = $factory->create($this->loop, $this->dnsResolver);
     }
 
     public function run(): void
     {
-        $processor = $this;
-        $this->loop->addPeriodicTimer(self::$config->timerUI, '\Octopus\Processor::timerStat');
-        $this->loop->addPeriodicTimer(self::$config->timerQueue, function ($timer) use ($processor) {
-            if (self::$targets->getFreeSlots()) {
-                $processor->spawnBundle();
-            } elseif (0 === (self::$targets->countQueue() + self::$targets->countRunning())) {
+        $this->loop->addPeriodicTimer($this->config->timerUI, array($this, 'timerStat'));
+        $this->loop->addPeriodicTimer($this->config->timerQueue, function (Timer $timer)  {
+            if ($this->targets->getFreeSlots()) {
+                $this->spawnBundle();
+            } elseif (0 === ($this->targets->countQueue() + $this->targets->countRunning())) {
                 $timer->cancel();
             }
         });
-        self::$started = microtime(true);
+
+        $this->started = microtime(true);
         $this->loop->run();
     }
 
     public function spawnBundle(): void
     {
-        for ($i = self::$targets->getFreeSlots(); $i > 0; $i--) {
-            list($id, $url) = self::$targets->launchAny();
+        for ($i = $this->targets->getFreeSlots(); $i > 0; $i--) {
+            //list($id, $url) = $this->targets->launchAny(); //TODO make configurable to either launch the next, or a random URL
+            list($id, $url) = $this->targets->launchNext();
             $this->spawn($id, $url);
         }
     }
 
-    public function spawn($id, $url): void
+    public function spawn(int $id, $url): void
     {
-        $requestType = self::$config->requestType;
+        $requestType = $this->config->requestType;
         $headers = [
             //'User-Agent' => 'Octopus/1.0',
             'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
@@ -244,19 +255,19 @@ class Processor
         $request->on('response', function (Response $response, Request $req) {
             $response->octopusUrl = $req->octopusUrl;
             $response->octopusId = $req->octopusId;
-            $response->on('data', 'Octopus\\Processor::onData');
-            $response->on('end', 'Octopus\\Processor::onEnd');
-            $response->on('error', 'Octopus\\Processor::onResponseError');
+            $response->on('data', array($this, 'onData'));
+            $response->on('end', array($this, 'onEnd'));
+            $response->on('error', array($this, 'onResponseError'));
         });
-        $request->on('error', 'Octopus\\Processor::onRequestError');
+        $request->on('error', array($this, 'onRequestError'));
         try {
             $request->end();
         } catch (Exception $e) {
             echo 'Problem of sending request: ' . $e->getMessage() . PHP_EOL;
         }
 
-        if (self::$config->spawnDelayMax) {
-            usleep(random_int(self::$config->spawnDelayMin, self::$config->spawnDelayMax));
+        if ($this->config->spawnDelayMax) {
+            usleep(random_int($this->config->spawnDelayMin, $this->config->spawnDelayMax));
         }
         $this->requests[$id] = $request;
     }
