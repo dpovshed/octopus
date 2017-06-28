@@ -5,7 +5,8 @@
 
 namespace Octopus;
 
-class Result {
-  protected $transferredCounter = 0;
-  protected $codes = array();
+class Result
+{
+    protected $transferredCounter = 0;
+    protected $codes = array();
 }
