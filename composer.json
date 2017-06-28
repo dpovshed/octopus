@@ -8,18 +8,23 @@
     }
   ],
   "require": {
-    "react/react": "0.4.*",
+    "react/react": "^0.4",
     "travis/yaml": "*"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "@stable"
   },
+  "autoload": {
+    "psr-4": {
+      "Octopus\\": "src/"
+    }
+  },
   "scripts": {
     "phpcs": [
-      "./vendor/bin/php-cs-fixer fix -v --dry-run --using-cache=no Octopus"
+      "./vendor/bin/php-cs-fixer fix -v --dry-run --using-cache=no src"
     ],
     "phpcs-fix": [
-      "./vendor/bin/php-cs-fixer fix -v --using-cache=no Octopus"
+      "./vendor/bin/php-cs-fixer fix -v --using-cache=no src"
     ]
   }
 }
