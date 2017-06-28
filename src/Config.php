@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Octopus;
 
 use Exception;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Define configuration storage.
@@ -26,19 +27,13 @@ class Config
 
     public function __construct()
     {
-        $this->loadDefaults();
+        $this->loadDefaults('./octopus.yml');
     }
 
-    public function loadDefaults(): void
+    private function loadDefaults(string $configurationFile): void
     {
-        if (function_exists('yaml_parse_file')) {
-            $yaml = yaml_parse_file('./octopus.yml');
-        } else {
-            $yaml = \Travis\YAML::from_file('./octopus.yml')->to_array();
-        }
-        if (!$yaml) {
-            throw new Exception(error_get_last()['message']);
-        }
+        $yaml = $this->loadConfigurationFromYaml($configurationFile);
+
         $this->values['targetFile'] = $yaml['target']['file'];
         $this->values['targetType'] = $yaml['target']['type'];
 
@@ -56,6 +51,11 @@ class Config
         assert($this->values['bonusRespawn'] <= 99, 'Misconfigured: bonus respawn should be up to 99');
         $this->values['timerUI'] = $yaml['timer_ui'];
         $this->values['timerQueue'] = $yaml['timer_queue'];
+    }
+
+    private function loadConfigurationFromYaml(string $configurationFile): array
+    {
+        return Yaml::parse(file_get_contents($configurationFile));
     }
 
     public function __get($key)
