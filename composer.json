@@ -1,4 +1,6 @@
 {
+  "prefer-stable": true,
+  "minimum-stability": "dev",
   "repositories": [
     {
       "type": "vcs",
@@ -9,6 +11,15 @@
     "react/react": "0.4.*",
     "travis/yaml": "*"
   },
-  "prefer-stable": true,
-  "minimum-stability": "dev"
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "@stable"
+  },
+  "scripts": {
+    "phpcs": [
+      "./vendor/bin/php-cs-fixer fix -v --dry-run --using-cache=no Octopus"
+    ],
+    "phpcs-fix": [
+      "./vendor/bin/php-cs-fixer fix -v --using-cache=no Octopus"
+    ]
+  }
 }
