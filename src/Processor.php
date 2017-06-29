@@ -73,9 +73,9 @@ class Processor
     private $started;
 
     /**
-     * @var TargetManager $targets
+     * @var TargetManager
      */
-    private $targets;
+    private $targetManager;
 
     /**
      * @var array
@@ -99,7 +99,7 @@ class Processor
 
     public function __construct(Config $config, TargetManager $targets)
     {
-        $this->targets = $targets;
+        $this->targetManager = $targets;
         $this->config = $config;
         $this->saveEnabled = $config->outputMode === 'save';
         if ($this->saveEnabled || $config->outputBroken) {
@@ -112,9 +112,9 @@ class Processor
 
     public function timerStat(Timer $timer): void
     {
-        $countQueue = $this->targets->countQueue();
-        $countRunning = $this->targets->countRunning();
-        $countFinished = $this->targets->countFinished();
+        $countQueue = $this->targetManager->countQueue();
+        $countRunning = $this->targetManager->countRunning();
+        $countFinished = $this->targetManager->countFinished();
 
         $codeInfo = array();
         foreach ($this->statCodes as $code => $count) {
@@ -169,7 +169,7 @@ class Processor
     public function onRequestError(Exception $e, Request $request): void
     {
         $this->statCodes['failed']++;
-        $this->targets->done($request->octopusId);
+        $this->targetManager->done($request->octopusId);
         $this->brokenUrls[$request->octopusUrl] = 'fail';
 
         echo $request->octopusUrl . ' request error: ' . $e->getMessage() . PHP_EOL;
@@ -178,7 +178,7 @@ class Processor
     public function onResponseError(Exception $e, Response $response): void
     {
         $this->statCodes['failed']++;
-        $this->targets->done($response->octopusId);
+        $this->targetManager->done($response->octopusId);
         $this->brokenUrls[$response->octopusUrl] = 'fail';
 
         echo $response->octopusUrl . ' response error: ' . $e->getMessage() . PHP_EOL;
@@ -189,10 +189,10 @@ class Processor
         $doBonus = random_int(0, 100) < $this->config->bonusRespawn;
         $code = $response->getCode();
         $this->statCodes[$code] = isset($this->statCodes[$code]) ? $this->statCodes[$code] + 1 : 1;
-        $this->targets->done($response->octopusId);
+        $this->targetManager->done($response->octopusId);
         if (in_array($code, $this->redirects, true)) {
             $headers = $response->getHeaders();
-            $this->targets->add($headers['Location']);
+            $this->targetManager->add($headers['Location']);
             return;
         }
         // Any 2xx code is 'success' for us, if not => failure
@@ -202,7 +202,7 @@ class Processor
         }
 
         if ($doBonus) {
-            $this->targets->add($response->octopusUrl);
+            $this->targetManager->add($response->octopusUrl);
         }
     }
 
@@ -221,9 +221,9 @@ class Processor
     {
         $this->loop->addPeriodicTimer($this->config->timerUI, array($this, 'timerStat'));
         $this->loop->addPeriodicTimer($this->config->timerQueue, function (Timer $timer) {
-            if ($this->targets->getFreeSlots()) {
+            if ($this->targetManager->getFreeSlots()) {
                 $this->spawnBundle();
-            } elseif (0 === ($this->targets->countQueue() + $this->targets->countRunning())) {
+            } elseif (0 === ($this->targetManager->countQueue() + $this->targetManager->countRunning())) {
                 $timer->cancel();
             }
         });
@@ -234,9 +234,9 @@ class Processor
 
     public function spawnBundle(): void
     {
-        for ($i = $this->targets->getFreeSlots(); $i > 0; $i--) {
+        for ($i = $this->targetManager->getFreeSlots(); $i > 0; $i--) {
             //list($id, $url) = $this->targets->launchAny(); //TODO make configurable to either launch the next, or a random URL
-            list($id, $url) = $this->targets->launchNext();
+            list($id, $url) = $this->targetManager->launchNext();
             $this->spawn($id, $url);
         }
     }
