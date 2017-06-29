@@ -5,62 +5,84 @@ declare(strict_types=1);
 namespace Octopus\Command;
 
 use Octopus\Config as OctopusConfig;
-use Octopus\Handlers as OctopusHandlers;
 use Octopus\Processor as OctopusProcessor;
-use Octopus\Result as OctopusResult;
 use Octopus\TargetManager as OctopusTargetManager;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Helper\TableCell;
+use Symfony\Component\Console\Helper\TableSeparator;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class RunOctopusCommand extends Command
 {
+    private const SITEMAP_FILE = 'sitemap';
+
     protected function configure(): void
     {
         $this
             ->setName('octopus:run')
-            ->setDescription('Run the Octopus.');
-        ;
+            ->setDescription('Run the Octopus Sitemap Crawler.')
+            ->addArgument(self::SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $output->writeln('<info>Starting Octopus</info>');
-
-
+        $output->writeln('Starting Octopus Sitemap Crawler');
         $config = new OctopusConfig();
-        $config->targetFile = 'http://d7.local.127.0.0.1.xip.io/sitemap.xml';
-        $result = new OctopusResult();
-        $handlers = new OctopusHandlers($config, $result);
-        $targets = new OctopusTargetManager($config, $result);
-        $processor = new OctopusProcessor($config, $targets);
+        $config->targetFile = $input->getArgument(self::SITEMAP_FILE);
+        $targetManager = new OctopusTargetManager($config);
+        $processor = new OctopusProcessor($config, $targetManager);
 
         try {
-            $targets->populate();
+            $numberOfQueuedFiles = $targetManager->populate();
+            $output->writeln($numberOfQueuedFiles . ' URLs queued for crawling');
             $processor->warmUp();
-            $processor->spawnBundle(); // Fill up initial portion then go.
+            $processor->spawnBundle();
         } catch (\Exception $e) {
-            $output->writeln('<info>Exception on initialization: ' . $e->getMessage() . '</info>');
+            $output->writeln('Exception on initialization: ' . $e->getMessage());
             exit;
         }
 
-        while ($targets->countQueue()) {
+        while ($targetManager->countQueue()) {
             $processor->run();
         }
 
-        echo PHP_EOL . PHP_EOL . 'Results:' . PHP_EOL;
+        $output->writeln(str_repeat(PHP_EOL, 2));
+        $this->renderResultsTable($output, $processor);
 
-        ksort($processor->statCodes);
-        foreach ($processor->statCodes as $code => $count) {
-            echo $code . ': ' . $count . PHP_EOL;
-        }
-
-        echo 'Total data: ' . $processor->totalData . PHP_EOL;
-
-        if ($config->outputBroken) {
+        if ($config->outputBroken && count($processor->brokenUrls) > 0) {
+            $content = array();
+            foreach ($processor->brokenUrls as $url => $httpStatusCode) {
+                $label = sprintf('Failed %d: %s', $httpStatusCode, $url);
+                $output->writeln($label);
+                $content[] = $label;
+            }
             file_put_contents($config->outputDestination . '/broken.txt',
-                implode(PHP_EOL, array_keys($processor->brokenUrls))
+                implode(PHP_EOL, $content)
             );
         }
+    }
+
+    private function renderResultsTable(OutputInterface $output, OctopusProcessor $processor): void
+    {
+        $table = new Table($output);
+        $table->setHeaders(
+            array(
+                array(new TableCell('Result summary', array('colspan' => count($processor->statCodes)))),
+                array_keys($processor->statCodes),
+            )
+        );
+        $table->addRow(array_values($processor->statCodes));
+        $table->addRow(new TableSeparator());
+        $table->addRows(
+            array(
+                array(new TableCell('Sitemap: ' . $processor->config->targetFile, array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Total amount of processed data: ' . $processor->totalData, array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Failed to load #URLs: ' . count($processor->brokenUrls), array('colspan' => count($processor->statCodes)))),
+            )
+        );
+        $table->render();
     }
 }
