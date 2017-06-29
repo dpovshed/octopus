@@ -9,11 +9,11 @@ use React\Dns\Resolver\Factory as DnsResolverFactory;
 use React\Dns\Resolver\Resolver as DnsResolver;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LibEventLoop;
+use React\EventLoop\Timer\Timer;
 use React\HttpClient\Client as HttpClient;
 use React\HttpClient\Factory as HttpClientFactory;
 use React\HttpClient\Request;
 use React\HttpClient\Response;
-use React\EventLoop\Timer\Timer;
 
 /**
  * Processor core.
