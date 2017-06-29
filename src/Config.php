@@ -8,63 +8,120 @@ use Exception;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Define configuration storage.
+ * Configuration object
  *
  * @package Octopus
  *
- * @property int $bonusRespawn Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
- * @property int $concurrency
- * @property string $dnsResolver IP address / host of the DNS Resolver
- * @property string $outputDestination Either 'save' or 'count'
- * @property string $outputMode
- * @property bool $outputBroken
- * @property string $requestType Either 'GET' or 'HEAD'
- * @property int $spawnDelayMax
- * @property int $spawnDelayMin
- * @property string $targetType Either 'xml' or 'txt'
  */
 class Config
 {
-    protected $values = array();
+    /**
+     * Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
+     *
+     * @var int
+     */
+    public $bonusRespawn = 0;
+
+    /**
+     * Number of concurrent / simultaneous requests.
+     *
+     * Be careful selecting very large value here. A value between 10-50 usually brings enough speed and fun.
+     *
+     * @var int
+     */
+    public $concurrency = 10;
+
+    /**
+     * IP address / host of the DNS Resolver.
+     *
+     * One might consider to use the Google DNS available at either:
+     *  - 8.8.8.8
+     *  - 8.8.4.4
+     *
+     * @var string
+     */
+    public $dnsResolver = '8.8.4.4';
+
+    /**
+     * If turned on: write list of failed URLs to a file.
+     *
+     * @var bool
+     */
+    public $outputBroken = true;
+
+    /**
+     * ~/save-to-some-dir if needed.
+     *
+     * @var string
+     */
+    public $outputDestination = '/tmp';
+
+    /**
+     * Either 'save' or 'count'
+     *
+     * @var string
+     */
+    public $outputMode = 'save';
+
+    /**
+     * Type of the request, 'GET'/'HEAD'.
+     *
+     * With HEAD saving data is not possible.
+     *
+     * @var string
+     */
+    public $requestType = 'HEAD';
+
+    /**
+     * Maximum delay after spawning requests in microseconds.
+     *
+     * @var int
+     */
+    public $spawnDelayMax = 0;
+
+    /**
+     * Minimum delay after spawning requests in microseconds.
+     *
+     * @var int
+     */
+    public $spawnDelayMin = 0;
+
+    /**
+     * The format of the loaded sitemap.
+     *
+     * Either 'xml' or 'txt'
+     *
+     * @var @var string
+     */
+    public $targetType = 'xml';
+
+    /**
+     * Use a local or remote target / sitemap file in either 'xml' or 'txt' format.
+     *
+     * @var string
+     */
+    public $targetFile;
+
+    /**
+     * How often to update current statistics.
+     *
+     * @var float
+     */
+    public $timerUI = 0.25;
+
+    /**
+     * How often spawn new request.
+     *
+     * @var float
+     */
+    public $timerQueue = 0.007;
 
     public function __construct()
     {
-        $this->loadDefaults('./octopus.yml');
+        assert($this->spawnDelayMax >= $this->spawnDelayMin, 'Misconfigured: check spawn delay numbers');
+        assert($this->bonusRespawn <= 99, 'Misconfigured: bonus respawn should be up to 99');
+
+        $this->outputDestination .= DIRECTORY_SEPARATOR . time();
     }
 
-    private function loadDefaults(string $configurationFile): void
-    {
-        $yaml = $this->loadConfigurationFromYaml($configurationFile);
-
-        $this->values['targetFile'] = $yaml['target']['file'];
-        $this->values['targetType'] = $yaml['target']['type'];
-
-        $this->values['outputMode'] = $yaml['output']['mode'];
-        $this->values['outputDestination'] = $yaml['output']['destination'] . '/' . time();
-        $this->values['outputBroken'] = $yaml['output']['broken'];
-
-        $this->values['spawnDelayMin'] = $yaml['delay']['min'];
-        $this->values['spawnDelayMax'] = $yaml['delay']['max'];
-        assert($this->values['spawnDelayMax'] >= $this->values['spawnDelayMin'], 'Misconfigured: check spawn delay numbers');
-        $this->values['dnsResolver'] = $yaml['dns_resolver'];
-        $this->values['concurrency'] = $yaml['concurrency'];
-        $this->values['requestType'] = $yaml['request_type'];
-        $this->values['bonusRespawn'] = $yaml['bonus_respawn'];
-        assert($this->values['bonusRespawn'] <= 99, 'Misconfigured: bonus respawn should be up to 99');
-        $this->values['timerUI'] = $yaml['timer_ui'];
-        $this->values['timerQueue'] = $yaml['timer_queue'];
-    }
-
-    private function loadConfigurationFromYaml(string $configurationFile): array
-    {
-        return Yaml::parse(file_get_contents($configurationFile));
-    }
-
-    public function __get($key)
-    {
-        if (!isset($this->values[$key])) {
-            throw new Exception(__METHOD__ . ': undefined parameter ' . $key);
-        }
-        return $this->values[$key];
-    }
 }

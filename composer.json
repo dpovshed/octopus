@@ -1,17 +1,10 @@
 {
   "prefer-stable": true,
   "minimum-stability": "dev",
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/swt83/php-yaml.git"
-    }
-  ],
   "require": {
     "php": "^7.1",
     "react/react": "^0.4",
-    "symfony/console": "^3.3",
-    "symfony/yaml": "^3.3"
+    "symfony/console": "^3.3"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "@stable"
