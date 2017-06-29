@@ -221,7 +221,7 @@ class Processor
     public function run(): void
     {
         $this->loop->addPeriodicTimer($this->config->timerUI, array($this, 'timerStat'));
-        $this->loop->addPeriodicTimer($this->config->timerQueue, function (Timer $timer)  {
+        $this->loop->addPeriodicTimer($this->config->timerQueue, function (Timer $timer) {
             if ($this->targets->getFreeSlots()) {
                 $this->spawnBundle();
             } elseif (0 === ($this->targets->countQueue() + $this->targets->countRunning())) {

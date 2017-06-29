@@ -148,5 +148,4 @@ class Config
 
         $this->outputDestination .= DIRECTORY_SEPARATOR . time();
     }
-
 }
