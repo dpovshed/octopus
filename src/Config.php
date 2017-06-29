@@ -12,10 +12,14 @@ namespace Octopus;
  */
 class Config
 {
+    public const HEADER_CLOUDFLARE_CACHE_STATUS = 'CF-Cache-Status';
+
     public const OUTPUT_MODE_COUNT = 'count';
     public const OUTPUT_MODE_SAVE = 'save';
+
     public const REQUEST_TYPE_GET = 'GET';
     public const REQUEST_TYPE_HEAD = 'HEAD';
+
     public const TARGET_TYPE_XML = 'xml';
     public const TARGET_TYPE_TXT = 'txt';
 
@@ -34,6 +38,16 @@ class Config
         self::TARGET_TYPE_TXT,
     );
 
+
+    /**
+     * An array of some additional response headers to count.
+     *
+     * @var array
+     */
+    public $additionalResponseHeadersToCount = array(
+        self::HEADER_CLOUDFLARE_CACHE_STATUS
+    );
+
     /**
      * Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
      *
@@ -48,7 +62,7 @@ class Config
      *
      * @var int
      */
-    public $concurrency = 10;
+    public $concurrency = 5;
 
     /**
      * IP address / host of the DNS Resolver.
