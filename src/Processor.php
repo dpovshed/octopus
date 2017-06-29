@@ -28,43 +28,36 @@ class Processor
     public $statCodes = ['failed' => 0];
 
     /**
-     * Redirects which we able too process.
+     * Total amount of processed data
      *
      * @var int
      */
     public $totalData = 0;
 
     /**
-     * Currently running requests.
-     *
-     * @todo: probably move to TargetManager
+     * URLs that could not be loaded.
      *
      * @var array
      */
     public $brokenUrls = [];
-
+    /**
+     * @var Config
+     */
+    public $config;
     /**
      * @var array
      */
     private $httpRedirectionResponseCodes = [301, 302, 303, 307, 308];
-
     /**
      * @var bool
      */
     private $saveEnabled;
-
     /**
      * to use with configuration elements
      *
      * @var string
      */
     private $savePath;
-
-    /**
-     * @var Config
-     */
-    private $config;
-
     /**
      * Timestamp to track execution time.
      *
@@ -110,7 +103,7 @@ class Processor
         }
     }
 
-    public function timerStat(Timer $timer): void
+    public function timerStatistics(Timer $timer): void
     {
         $countQueue = $this->targetManager->countQueue();
         $countRunning = $this->targetManager->countRunning();
@@ -121,7 +114,7 @@ class Processor
             $codeInfo[] = sprintf('%s: %d', $code, $count);
         }
 
-        echo sprintf(" %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Stats: %s           \r",
+        echo sprintf(" %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Statistics: %s           \r",
             memory_get_usage(true) / 1048576,
             microtime(true) - $this->started,
             $countQueue,
@@ -150,8 +143,7 @@ class Processor
 
     private function countAdditionalHeaders(array $headers): void
     {
-
-        if(is_array($this->config->additionalResponseHeadersToCount) && count($this->config->additionalResponseHeadersToCount) > 0) {
+        if (is_array($this->config->additionalResponseHeadersToCount) && count($this->config->additionalResponseHeadersToCount) > 0) {
             foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
                 if (isset($headers[$additionalHeader])) {
                     $headerLabel = sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader]);
@@ -186,18 +178,18 @@ class Processor
 
     public function onEnd($data, Response $response): void
     {
-        $code = $response->getCode();
-        $this->statCodes[$code] = isset($this->statCodes[$code]) ? $this->statCodes[$code] + 1 : 1;
+        $httpResponseCode = $response->getCode();
+        $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
         $this->targetManager->done($response->octopusId);
-        if (in_array($code, $this->httpRedirectionResponseCodes, true)) {
+        if (in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
             $headers = $response->getHeaders();
             $this->targetManager->add($headers['Location']);
             return;
         }
 
         // Any 2xx code is 'success' for us, if not => failure
-        if ((int)($code / 100) !== 2) {
-            $this->brokenUrls[$response->octopusUrl] = $code;
+        if ((int)($httpResponseCode / 100) !== 2) {
+            $this->brokenUrls[$response->octopusUrl] = $httpResponseCode;
             return;
         }
 
@@ -219,7 +211,7 @@ class Processor
 
     public function run(): void
     {
-        $this->loop->addPeriodicTimer($this->config->timerUI, array($this, 'timerStat'));
+        $this->loop->addPeriodicTimer($this->config->timerUI, array($this, 'timerStatistics'));
         $this->loop->addPeriodicTimer($this->config->timerQueue, function (Timer $timer) {
             if ($this->targetManager->getFreeSlots()) {
                 $this->spawnBundle();
