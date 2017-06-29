@@ -12,8 +12,8 @@ namespace Octopus;
  */
 class Handlers
 {
-    private $result;
     protected $path = '';
+    private $result;
 
     public function __construct(Config $config, Result $result)
     {

@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Octopus;
 
-use Exception;
-use Symfony\Component\Yaml\Yaml;
-
 /**
  * Configuration object
  *
