@@ -70,7 +70,7 @@ class RunOctopusCommand extends Command
         $table = new Table($output);
         $table->setHeaders(
             array(
-                array(new TableCell('Result summary', array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Crawling summary for: ' . $processor->config->targetFile, array('colspan' => count($processor->statCodes)))),
                 array_keys($processor->statCodes),
             )
         );
@@ -78,7 +78,7 @@ class RunOctopusCommand extends Command
         $table->addRow(new TableSeparator());
         $table->addRows(
             array(
-                array(new TableCell('Sitemap: ' . $processor->config->targetFile, array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Applied concurrency: ' . $processor->config->concurrency, array('colspan' => count($processor->statCodes)))),
                 array(new TableCell('Total amount of processed data: ' . $processor->totalData, array('colspan' => count($processor->statCodes)))),
                 array(new TableCell('Failed to load #URLs: ' . count($processor->brokenUrls), array('colspan' => count($processor->statCodes)))),
             )
