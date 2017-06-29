@@ -29,7 +29,7 @@ class RunOctopusCommand extends Command
 
 
         $config = new OctopusConfig();
-        $config->targetFile = 'file: http://d7.local.127.0.0.1.xip.io/sitemap.xml';
+        $config->targetFile = 'http://d7.local.127.0.0.1.xip.io/sitemap.xml';
         $result = new OctopusResult();
         $handlers = new OctopusHandlers($config, $result);
         $targets = new OctopusTargetManager($config, $result);
