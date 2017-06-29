@@ -13,12 +13,6 @@ use Exception;
  */
 class TargetManager
 {
-    /**
-     * Number of simultaneously running tasks.
-     *
-     * @var int
-     */
-    private $concurrency;
 
     /**
      * @var array
@@ -40,13 +34,12 @@ class TargetManager
      */
     private $config;
 
-    public function __construct(Config $config, Result $result)
+    public function __construct(Config $config)
     {
         $this->config = $config;
-        $this->concurrency = $config->concurrency;
     }
 
-    public function populate(): void
+    public function populate(): int
     {
         echo 'Loading destination URLs from ' . $this->config->targetFile . PHP_EOL;
         if (!($data = @file_get_contents($this->config->targetFile))) {
@@ -67,7 +60,8 @@ class TargetManager
             throw new Exception('No URL entries found');
         }
         $this->queuedUrls = $matches[1];
-        echo count($this->queuedUrls) . ' target URLs set' . PHP_EOL;
+
+        return count($this->queuedUrls);
     }
 
     public function add(string $url): int
@@ -139,7 +133,7 @@ class TargetManager
 
     public function getFreeSlots(): int
     {
-        return min($this->concurrency - $this->countRunning(), $this->countQueue());
+        return min($this->config->concurrency - $this->countRunning(), $this->countQueue());
     }
 
     public function countRunning(): int
