@@ -46,7 +46,7 @@ class Processor
     /**
      * @var array
      */
-    private $redirects = [301, 302, 303, 307, 308];
+    private $httpRedirectionResponseCodes = [301, 302, 303, 307, 308];
 
     /**
      * @var bool
@@ -186,22 +186,22 @@ class Processor
 
     public function onEnd($data, Response $response): void
     {
-        $doBonus = random_int(0, 100) < $this->config->bonusRespawn;
         $code = $response->getCode();
         $this->statCodes[$code] = isset($this->statCodes[$code]) ? $this->statCodes[$code] + 1 : 1;
         $this->targetManager->done($response->octopusId);
-        if (in_array($code, $this->redirects, true)) {
+        if (in_array($code, $this->httpRedirectionResponseCodes, true)) {
             $headers = $response->getHeaders();
             $this->targetManager->add($headers['Location']);
             return;
         }
+
         // Any 2xx code is 'success' for us, if not => failure
         if ((int)($code / 100) !== 2) {
             $this->brokenUrls[$response->octopusUrl] = $code;
             return;
         }
 
-        if ($doBonus) {
+        if (random_int(0, 100) < $this->config->bonusRespawn) {
             $this->targetManager->add($response->octopusUrl);
         }
     }
