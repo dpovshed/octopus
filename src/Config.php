@@ -97,6 +97,14 @@ class Config
     public $outputMode = self::OUTPUT_MODE_SAVE;
 
     /**
+     * @var array
+     */
+    public $requestHeaders = array(
+        //'User-Agent' => 'Octopus/1.0',
+        'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+    );
+
+    /**
      * Type of the request, 'GET'/'HEAD'.
      *
      * With HEAD saving data is not possible.

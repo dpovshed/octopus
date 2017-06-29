@@ -241,24 +241,20 @@ class Processor
         }
     }
 
-    public function spawn(int $id, $url): void
+    public function spawn(int $id, string $url): void
     {
-        $requestType = $this->config->requestType;
-        $headers = [
-            //'User-Agent' => 'Octopus/1.0',
-            'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-        ];
-        $request = $this->client->request($requestType, $url, $headers);
+        $request = $this->client->request($this->config->requestType, $url, $this->config->requestHeaders);
         $request->octopusUrl = $url;
         $request->octopusId = $id;
-        $request->on('response', function (Response $response, Request $req) {
-            $response->octopusUrl = $req->octopusUrl;
-            $response->octopusId = $req->octopusId;
+        $request->on('response', function (Response $response, Request $request) {
+            $response->octopusUrl = $request->octopusUrl;
+            $response->octopusId = $request->octopusId;
             $response->on('data', array($this, 'onData'));
             $response->on('end', array($this, 'onEnd'));
             $response->on('error', array($this, 'onResponseError'));
         });
         $request->on('error', array($this, 'onRequestError'));
+
         try {
             $request->end();
         } catch (Exception $e) {
@@ -268,6 +264,7 @@ class Processor
         if ($this->config->spawnDelayMax) {
             usleep(random_int($this->config->spawnDelayMin, $this->config->spawnDelayMax));
         }
+
         $this->requests[$id] = $request;
     }
 }
