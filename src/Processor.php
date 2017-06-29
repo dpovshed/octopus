@@ -150,14 +150,13 @@ class Processor
 
     private function countAdditionalHeaders(array $headers): void
     {
-        $consideredHeaders = array(
-            'CF-Cache-Status',
-        );
 
-        foreach ($consideredHeaders as $consideredHeader) {
-            if (isset($headers[$consideredHeader])) {
-                $headerLabel = sprintf('%s (%s)', $consideredHeader, $headers[$consideredHeader]);
-                $this->statCodes[$headerLabel] = isset($this->statCodes[$headerLabel]) ? $this->statCodes[$headerLabel] + 1 : 1;
+        if(is_array($this->config->additionalResponseHeadersToCount) && count($this->config->additionalResponseHeadersToCount) > 0) {
+            foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
+                if (isset($headers[$additionalHeader])) {
+                    $headerLabel = sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader]);
+                    $this->statCodes[$headerLabel] = isset($this->statCodes[$headerLabel]) ? $this->statCodes[$headerLabel] + 1 : 1;
+                }
             }
         }
     }
