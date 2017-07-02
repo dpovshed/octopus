@@ -131,6 +131,11 @@ class TargetManager
         return count($this->finishedUrls);
     }
 
+    public function hasFreeSlots(): bool
+    {
+        return $this->getFreeSlots() > 0;
+    }
+
     public function getFreeSlots(): int
     {
         return min($this->config->concurrency - $this->countRunning(), $this->countQueue());
@@ -144,5 +149,15 @@ class TargetManager
     public function countQueue(): int
     {
         return count($this->queuedUrls);
+    }
+
+    public function noMoreUrlsToProcess(): bool
+    {
+        return $this->countQueuedAndRunningUrls() === 0;
+    }
+
+    public function countQueuedAndRunningUrls(): int
+    {
+        return $this->countQueue() + $this->countRunning();
     }
 }

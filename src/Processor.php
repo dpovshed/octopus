@@ -216,9 +216,9 @@ class Processor
     {
         $this->loop->addPeriodicTimer($this->config->timerUI, array($this, 'timerStatistics'));
         $this->loop->addPeriodicTimer($this->config->timerQueue, function (Timer $timer) {
-            if ($this->targetManager->getFreeSlots()) {
+            if ($this->targetManager->hasFreeSlots()) {
                 $this->spawnBundle();
-            } elseif (0 === ($this->targetManager->countQueue() + $this->targetManager->countRunning())) {
+            } elseif ($this->targetManager->noMoreUrlsToProcess()) {
                 $timer->cancel();
             }
         });
