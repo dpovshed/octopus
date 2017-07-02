@@ -1,4 +1,6 @@
 {
+  "name": "octopus/octopus",
+  "description": "PHP Sitemap crawler",
   "prefer-stable": true,
   "minimum-stability": "dev",
   "require": {
