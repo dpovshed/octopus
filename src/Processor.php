@@ -40,14 +40,17 @@ class Processor
      * @var array
      */
     public $brokenUrls = [];
+
     /**
      * @var Config
      */
     public $config;
+
     /**
      * @var array
      */
     private $httpRedirectionResponseCodes = [301, 302, 303, 307, 308];
+
     /**
      * @var bool
      */

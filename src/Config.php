@@ -12,7 +12,9 @@ namespace Octopus;
  */
 class Config
 {
-    public const HEADER_CLOUDFLARE_CACHE_STATUS = 'CF-Cache-Status';
+    private const DEFAULT_REQUEST_HEADERS = array(
+        'User-Agent' => 'Octopus/1.0',
+    );
 
     public const OUTPUT_MODE_COUNT = 'count';
     public const OUTPUT_MODE_SAVE = 'save';
@@ -38,15 +40,12 @@ class Config
         self::TARGET_TYPE_TXT,
     );
 
-
     /**
      * An array of some additional response headers to count.
      *
      * @var array
      */
-    public $additionalResponseHeadersToCount = array(
-        self::HEADER_CLOUDFLARE_CACHE_STATUS
-    );
+    public $additionalResponseHeadersToCount;
 
     /**
      * Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
@@ -94,15 +93,14 @@ class Config
      *
      * @var string
      */
-    public $outputMode = self::OUTPUT_MODE_SAVE;
+    public $outputMode = self::OUTPUT_MODE_COUNT;
 
     /**
+     * The headers used in the request to fetch a URL.
+     *
      * @var array
      */
-    public $requestHeaders = array(
-        //'User-Agent' => 'Octopus/1.0',
-        'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-    );
+    public $requestHeaders = self::DEFAULT_REQUEST_HEADERS;
 
     /**
      * Type of the request, 'GET'/'HEAD'.
