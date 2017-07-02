@@ -83,7 +83,6 @@ using a specific concurrency:
         if (is_numeric($input->getOption(self::CONCURRENCY))) {
             $config->concurrency = (int)$input->getOption(self::CONCURRENCY);
         }
-
         $config->targetFile = $input->getArgument(self::SITEMAP_FILE);
 
         return $config;
