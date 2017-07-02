@@ -1,6 +1,7 @@
 {
   "name": "octopus/octopus",
   "description": "PHP Sitemap crawler",
+  "license": "MIT",
   "prefer-stable": true,
   "minimum-stability": "dev",
   "require": {
