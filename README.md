@@ -15,9 +15,13 @@ php application.php http://www.domain.ext/sitemap.xml --concurrency 15
 ```
 
 ## Usage from your own application
-You can easily integrate sitemap crawling on your own application, have a look at the `Config` class for all possible configuration options.
+You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options.
 
 ```php
+use Octopus\Config as OctopusConfig;
+use Octopus\Processor as OctopusProcessor;
+use Octopus\TargetManager as OctopusTargetManager;
+
 $config = new OctopusConfig();
 $config->targetFile = $sitemapUrl;
 $config->additionalResponseHeadersToCount = array(
