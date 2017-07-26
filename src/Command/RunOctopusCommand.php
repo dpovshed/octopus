@@ -29,8 +29,7 @@ class RunOctopusCommand extends Command
             ->addArgument(self::SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
             ->addOption(self::CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
             ->setHelp(
-                sprintf('
-Usage:
+                sprintf('Usage:
 <info> - php application.php %1$s http://www.domain.ext/sitemap.xml</info>
 using a specific concurrency:
 <info> - php application.php %1$s http://www.domain.ext/sitemap.xml --%2$s 15</info>',
@@ -71,7 +70,8 @@ using a specific concurrency:
                 $output->writeln($label);
                 $content[] = $label;
             }
-            file_put_contents($config->outputDestination . '/broken.txt',
+            file_put_contents(
+                $config->outputDestination . '/broken.txt',
                 implode(PHP_EOL, $content)
             );
         }
@@ -80,10 +80,10 @@ using a specific concurrency:
     private function determineConfiguration(InputInterface $input): Config
     {
         $config = new Config();
+        $config->targetFile = $input->getArgument(self::SITEMAP_FILE);
         if (is_numeric($input->getOption(self::CONCURRENCY))) {
             $config->concurrency = (int)$input->getOption(self::CONCURRENCY);
         }
-        $config->targetFile = $input->getArgument(self::SITEMAP_FILE);
 
         return $config;
     }
