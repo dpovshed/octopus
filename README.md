@@ -6,12 +6,12 @@ Web project using [PHPReact](https://github.com/reactphp/react) library, designe
 ## Usage from the Command Line Interface (CLI)
 
 ```bash
-php application.php http://www.domain.ext/sitemap.xml
+php application.php octopus:run http://www.domain.ext/sitemap.xml
 ```
 using a specific amount of concurrent connections:
 
 ```bash
-php application.php http://www.domain.ext/sitemap.xml --concurrency 15
+php application.php octopus:run http://www.domain.ext/sitemap.xml --concurrency 15
 ```
 
 ## Usage from your own application
