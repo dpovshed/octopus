@@ -41,10 +41,10 @@ class TargetManager
 
     public function populate(): int
     {
-        echo 'Loading destination URLs from ' . $this->config->targetFile . PHP_EOL;
         if (!($data = @file_get_contents($this->config->targetFile))) {
             throw new Exception(error_get_last()['message']);
         }
+
         switch ($this->config->targetType) {
             case 'xml':
                 $mask = "/\<loc\>(.+)\<\/loc\>/miU";
@@ -53,7 +53,7 @@ class TargetManager
                 $mask = "/^\s*((?U).+)\s*$/mi";
                 break;
             default:
-                throw new Exception("Unsupported file type: {$this->config->targetType}");
+                throw new Exception('Unsupported file type: ' . $this->config->targetType);
         }
         $matches = [];
         if (!preg_match_all($mask, $data, $matches)) {
