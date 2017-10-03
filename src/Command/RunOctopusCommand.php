@@ -22,12 +22,17 @@ class RunOctopusCommand extends Command
     /**
      * @var string
      */
-    private const SITEMAP_FILE = 'sitemap';
+    private const COMMAND_ARGUMENT_SITEMAP_FILE = 'sitemap';
 
     /**
      * @var string
      */
-    private const CONCURRENCY = 'concurrency';
+    private const COMMAND_OPTION_CONCURRENCY = 'concurrency';
+
+    /**
+     * @var string
+     */
+    private const COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT = 'additionalResponseHeadersToCount';
 
     /**
      * @var string
@@ -49,8 +54,9 @@ class RunOctopusCommand extends Command
         $this
             ->setName('octopus:run')
             ->setDescription('Run the Octopus Sitemap Crawler.')
-            ->addArgument(self::SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
-            ->addOption(self::CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
+            ->addArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
+            ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
+            ->addOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT, null, InputOption::VALUE_OPTIONAL, 'A comma separated list of the additional response headers to keep track of / count during crawling')
             ->setHelp(
                 sprintf(
                     'Usage:
@@ -58,7 +64,7 @@ class RunOctopusCommand extends Command
 using a specific concurrency:
 <info> - php application.php %1$s http://www.domain.ext/sitemap.xml --%2$s 15</info>',
                     $this->getName(),
-                    self::CONCURRENCY
+                    self::COMMAND_OPTION_CONCURRENCY
                 )
             );
     }
@@ -68,7 +74,7 @@ using a specific concurrency:
         $this->crawlingStartedDateTime = new DateTime();
         $output->writeln('Starting Octopus Sitemap Crawler');
 
-        $config = $this->determineConfiguration($input);
+        $config = $this->determineConfiguration($input, $output);
         $targetManager = new OctopusTargetManager($config);
         $processor = new OctopusProcessor($config, $targetManager);
 
@@ -85,12 +91,20 @@ using a specific concurrency:
         }
     }
 
-    private function determineConfiguration(InputInterface $input): Config
+    private function determineConfiguration(InputInterface $input, OutputInterface $output): Config
     {
         $config = new Config();
-        $config->targetFile = $input->getArgument(self::SITEMAP_FILE);
-        if (is_numeric($input->getOption(self::CONCURRENCY))) {
-            $config->concurrency = (int)$input->getOption(self::CONCURRENCY);
+        $config->targetFile = $input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
+        $output->writeln('Loading URLs from Sitemap: ' . $config->targetFile);
+
+        if (is_numeric($input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
+            $config->concurrency = (int)$input->getOption(self::COMMAND_OPTION_CONCURRENCY);
+            $output->writeln('Using concurrency: ' . $config->concurrency);
+        }
+        if(is_string($input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))){
+            $additionalResponseHeadersToCount = $input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
+            $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
+            $output->writeln('Keep track of additional response headers: ' . $additionalResponseHeadersToCount);
         }
 
         return $config;
@@ -99,6 +113,7 @@ using a specific concurrency:
     private function runProcessor(OctopusProcessor $processor, OctopusTargetManager $targetManager, OutputInterface $output): void
     {
         try {
+
             $numberOfQueuedFiles = $targetManager->populate();
             $output->writeln($numberOfQueuedFiles . ' URLs queued for crawling');
             $processor->warmUp();
