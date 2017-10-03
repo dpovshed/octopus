@@ -67,40 +67,21 @@ using a specific concurrency:
     {
         $this->crawlingStartedDateTime = new DateTime();
         $output->writeln('Starting Octopus Sitemap Crawler');
+
         $config = $this->determineConfiguration($input);
         $targetManager = new OctopusTargetManager($config);
         $processor = new OctopusProcessor($config, $targetManager);
 
-        try {
-            $numberOfQueuedFiles = $targetManager->populate();
-            $output->writeln($numberOfQueuedFiles . ' URLs queued for crawling');
-            $processor->warmUp();
-            $processor->spawnBundle();
-        } catch (\Exception $e) {
-            $output->writeln('Exception on initialization: ' . $e->getMessage());
-            exit;
-        }
-
-        while ($targetManager->countQueue()) {
-            $processor->run();
-        }
+        $this->runProcessor($processor, $targetManager, $output);
 
         $this->crawlingEndedDateTime = new DateTime();
 
         $output->writeln(str_repeat(PHP_EOL, 2));
         $this->renderResultsTable($output, $processor);
 
+
         if ($config->outputBroken && count($processor->brokenUrls) > 0) {
-            $content = array();
-            foreach ($processor->brokenUrls as $url => $httpStatusCode) {
-                $label = sprintf('Failed %d: %s', $httpStatusCode, $url);
-                $output->writeln($label);
-                $content[] = $label;
-            }
-            file_put_contents(
-                $config->outputDestination . '/broken.txt',
-                implode(PHP_EOL, $content)
-            );
+            $this->outputBrokenUrls($processor, $output, $config->outputDestination);
         }
     }
 
@@ -115,35 +96,48 @@ using a specific concurrency:
         return $config;
     }
 
+    private function runProcessor(OctopusProcessor $processor, OctopusTargetManager $targetManager, OutputInterface $output): void
+    {
+        try {
+            $numberOfQueuedFiles = $targetManager->populate();
+            $output->writeln($numberOfQueuedFiles . ' URLs queued for crawling');
+            $processor->warmUp();
+            $processor->spawnBundle();
+        } catch (\Exception $e) {
+            $output->writeln('Exception on initialization: ' . $e->getMessage());
+            exit;
+        }
+
+        while ($targetManager->countQueue()) {
+            $processor->run();
+        }
+    }
+
     private function renderResultsTable(OutputInterface $output, OctopusProcessor $processor): void
     {
+        $rowColumnSpan = array('colspan' => count($processor->statCodes));
+
         $table = new Table($output);
         $table->setHeaders(
             array(
-                array(new TableCell('Crawling summary for: ' . $processor->config->targetFile, array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Crawling summary for: ' . $processor->config->targetFile, $rowColumnSpan)),
                 array_keys($processor->statCodes),
             )
         );
         $table->addRow(array_values($processor->statCodes));
         $table->addRow(new TableSeparator());
+
         $table->addRows(
             array(
-                array(new TableCell('Crawling started: ' . $this->getCrawlingStartedLabel(), array('colspan' => count($processor->statCodes)))),
-                array(new TableCell('Crawling ended: ' . $this->getCrawlingEndedLabel(), array('colspan' => count($processor->statCodes)))),
-                array(new TableCell('Crawling duration: ' . $this->getCrawlingDurationLabel(), array('colspan' => count($processor->statCodes)))),
-                array(new TableCell('Applied concurrency: ' . $processor->config->concurrency, array('colspan' => count($processor->statCodes)))),
-                array(new TableCell('Total amount of processed data: ' . $processor->totalData, array('colspan' => count($processor->statCodes)))),
-                array(new TableCell('Failed to load #URLs: ' . count($processor->brokenUrls), array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Crawling started: ' . $this->getCrawlingStartedLabel(), $rowColumnSpan)),
+                array(new TableCell('Crawling ended: ' . $this->getCrawlingEndedLabel(), $rowColumnSpan)),
+                array(new TableCell('Crawling duration: ' . $this->getCrawlingDurationLabel(), $rowColumnSpan)),
+                array(new TableCell('Applied concurrency: ' . $processor->config->concurrency, $rowColumnSpan)),
+                array(new TableCell('Total amount of processed data: ' . $processor->totalData, $rowColumnSpan)),
+                array(new TableCell('Failed to load #URLs: ' . count($processor->brokenUrls), $rowColumnSpan)),
             )
         );
         $table->render();
-    }
-
-    private function getCrawlingDurationLabel(): string
-    {
-        $numberOfSeconds = $this->crawlingEndedDateTime->getTimestamp() - $this->crawlingStartedDateTime->getTimestamp();
-
-        return sprintf('%d seconds', $numberOfSeconds);
     }
 
     private function getCrawlingStartedLabel(): string
@@ -154,5 +148,27 @@ using a specific concurrency:
     private function getCrawlingEndedLabel(): string
     {
         return $this->crawlingEndedDateTime->format(self::DATE_FORMAT);
+    }
+
+    private function getCrawlingDurationLabel(): string
+    {
+        $numberOfSeconds = $this->crawlingEndedDateTime->getTimestamp() - $this->crawlingStartedDateTime->getTimestamp();
+
+        return sprintf('%d seconds', $numberOfSeconds);
+    }
+
+    private function outputBrokenUrls(OctopusProcessor $processor, OutputInterface $output, string $outputDestination): void
+    {
+        $content = array();
+        foreach ($processor->brokenUrls as $url => $httpStatusCode) {
+            $label = sprintf('Failed %d: %s', $httpStatusCode, $url);
+            $output->writeln($label);
+            $content[] = $label;
+        }
+
+        file_put_contents(
+            $outputDestination . '/broken.txt',
+            implode(PHP_EOL, $content)
+        );
     }
 }
