@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Octopus\Command;
 
+use DateTime;
 use Octopus\Config;
 use Octopus\Processor as OctopusProcessor;
 use Octopus\TargetManager as OctopusTargetManager;
@@ -18,8 +19,30 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class RunOctopusCommand extends Command
 {
+    /**
+     * @var string
+     */
     private const SITEMAP_FILE = 'sitemap';
+
+    /**
+     * @var string
+     */
     private const CONCURRENCY = 'concurrency';
+
+    /**
+     * @var string
+     */
+    private const DATE_FORMAT = DateTime::W3C;
+
+    /**
+     * @var DateTime
+     */
+    private $crawlingStartedDateTime;
+
+    /**
+     * @var DateTime
+     */
+    private $crawlingEndedDateTime;
 
     protected function configure(): void
     {
@@ -29,7 +52,8 @@ class RunOctopusCommand extends Command
             ->addArgument(self::SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
             ->addOption(self::CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
             ->setHelp(
-                sprintf('Usage:
+                sprintf(
+                    'Usage:
 <info> - php application.php %1$s http://www.domain.ext/sitemap.xml</info>
 using a specific concurrency:
 <info> - php application.php %1$s http://www.domain.ext/sitemap.xml --%2$s 15</info>',
@@ -41,6 +65,7 @@ using a specific concurrency:
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->crawlingStartedDateTime = new DateTime();
         $output->writeln('Starting Octopus Sitemap Crawler');
         $config = $this->determineConfiguration($input);
         $targetManager = new OctopusTargetManager($config);
@@ -59,6 +84,8 @@ using a specific concurrency:
         while ($targetManager->countQueue()) {
             $processor->run();
         }
+
+        $this->crawlingEndedDateTime = new DateTime();
 
         $output->writeln(str_repeat(PHP_EOL, 2));
         $this->renderResultsTable($output, $processor);
@@ -101,11 +128,31 @@ using a specific concurrency:
         $table->addRow(new TableSeparator());
         $table->addRows(
             array(
+                array(new TableCell('Crawling started: ' . $this->getCrawlingStartedLabel(), array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Crawling ended: ' . $this->getCrawlingEndedLabel(), array('colspan' => count($processor->statCodes)))),
+                array(new TableCell('Crawling duration: ' . $this->getCrawlingDurationLabel(), array('colspan' => count($processor->statCodes)))),
                 array(new TableCell('Applied concurrency: ' . $processor->config->concurrency, array('colspan' => count($processor->statCodes)))),
                 array(new TableCell('Total amount of processed data: ' . $processor->totalData, array('colspan' => count($processor->statCodes)))),
                 array(new TableCell('Failed to load #URLs: ' . count($processor->brokenUrls), array('colspan' => count($processor->statCodes)))),
             )
         );
         $table->render();
+    }
+
+    private function getCrawlingDurationLabel(): string
+    {
+        $numberOfSeconds = $this->crawlingEndedDateTime->getTimestamp() - $this->crawlingStartedDateTime->getTimestamp();
+
+        return sprintf('%d seconds', $numberOfSeconds);
+    }
+
+    private function getCrawlingStartedLabel(): string
+    {
+        return $this->crawlingStartedDateTime->format(self::DATE_FORMAT);
+    }
+
+    private function getCrawlingEndedLabel(): string
+    {
+        return $this->crawlingEndedDateTime->format(self::DATE_FORMAT);
     }
 }
