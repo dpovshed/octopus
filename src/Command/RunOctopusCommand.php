@@ -85,7 +85,6 @@ using a specific concurrency:
         $output->writeln(str_repeat(PHP_EOL, 2));
         $this->renderResultsTable($output, $processor);
 
-
         if ($config->outputBroken && count($processor->brokenUrls) > 0) {
             $this->outputBrokenUrls($processor, $output, $config->outputDestination);
         }
@@ -113,7 +112,6 @@ using a specific concurrency:
     private function runProcessor(OctopusProcessor $processor, OctopusTargetManager $targetManager, OutputInterface $output): void
     {
         try {
-
             $numberOfQueuedFiles = $targetManager->populate();
             $output->writeln($numberOfQueuedFiles . ' URLs queued for crawling');
             $processor->warmUp();
