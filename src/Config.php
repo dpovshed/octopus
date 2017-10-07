@@ -12,12 +12,12 @@ namespace Octopus;
  */
 class Config
 {
-    private const DEFAULT_REQUEST_HEADERS = array(
-        'User-Agent' => 'Octopus/1.0',
-    );
 
     public const OUTPUT_MODE_COUNT = 'count';
     public const OUTPUT_MODE_SAVE = 'save';
+
+    public const REQUEST_HEADER_USER_AGENT = 'User-Agent';
+    public const REQUEST_HEADER_USER_AGENT_DEFAULT = 'Octopus/1.0';
 
     public const REQUEST_TYPE_GET = 'GET';
     public const REQUEST_TYPE_HEAD = 'HEAD';
@@ -100,7 +100,9 @@ class Config
      *
      * @var array
      */
-    public $requestHeaders = self::DEFAULT_REQUEST_HEADERS;
+    public $requestHeaders = array(
+        self::REQUEST_HEADER_USER_AGENT => self::REQUEST_HEADER_USER_AGENT_DEFAULT,
+    );
 
     /**
      * Type of the request, 'GET'/'HEAD'.
