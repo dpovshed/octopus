@@ -37,6 +37,11 @@ class RunOctopusCommand extends Command
     /**
      * @var string
      */
+    private const COMMAND_OPTION_USER_AGENT = 'userAgent';
+
+    /**
+     * @var string
+     */
     private const DATE_FORMAT = DateTime::W3C;
 
     /**
@@ -57,6 +62,7 @@ class RunOctopusCommand extends Command
             ->addArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
             ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
             ->addOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT, null, InputOption::VALUE_OPTIONAL, 'A comma separated list of the additional response headers to keep track of / count during crawling')
+            ->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to ' . Config::REQUEST_HEADER_USER_AGENT_DEFAULT)
             ->setHelp(
                 sprintf(
                     'Usage:
@@ -104,6 +110,11 @@ using a specific concurrency:
             $additionalResponseHeadersToCount = $input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
             $output->writeln('Keep track of additional response headers: ' . $additionalResponseHeadersToCount);
+        }
+        if(is_string($input->getOption(self::COMMAND_OPTION_USER_AGENT))){
+            $userAgent = $input->getOption(self::COMMAND_OPTION_USER_AGENT);
+            $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgent;
+            $output->writeln('Use UserAgent for issued requests: ' . $userAgent);
         }
 
         return $config;
