@@ -6,8 +6,10 @@
   "minimum-stability": "dev",
   "require": {
     "php": "^7.1",
-    "react/react": "^0.4",
-    "symfony/console": "^3.3"
+    "symfony/console": "^3.3",
+    "react/event-loop": "^0.4",
+    "react/http-client": "^0.5",
+    "react/dns": "^0.4"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "@stable",
