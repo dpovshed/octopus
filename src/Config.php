@@ -63,17 +63,6 @@ class Config
     public $concurrency = 5;
 
     /**
-     * IP address / host of the DNS Resolver.
-     *
-     * One might consider to use the Google DNS available at either:
-     *  - 8.8.8.8
-     *  - 8.8.4.4
-     *
-     * @var string
-     */
-    public $dnsResolver = '8.8.4.4';
-
-    /**
      * If turned on: write list of failed URLs to a file.
      *
      * @var bool
