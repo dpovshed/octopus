@@ -106,12 +106,12 @@ using a specific concurrency:
             $config->concurrency = (int)$input->getOption(self::COMMAND_OPTION_CONCURRENCY);
             $output->writeln('Using concurrency: ' . $config->concurrency);
         }
-        if(is_string($input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))){
+        if (is_string($input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
             $output->writeln('Keep track of additional response headers: ' . $additionalResponseHeadersToCount);
         }
-        if(is_string($input->getOption(self::COMMAND_OPTION_USER_AGENT))){
+        if (is_string($input->getOption(self::COMMAND_OPTION_USER_AGENT))) {
             $userAgent = $input->getOption(self::COMMAND_OPTION_USER_AGENT);
             $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgent;
             $output->writeln('Use UserAgent for issued requests: ' . $userAgent);

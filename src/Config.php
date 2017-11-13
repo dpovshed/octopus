@@ -12,7 +12,6 @@ namespace Octopus;
  */
 class Config
 {
-
     public const OUTPUT_MODE_COUNT = 'count';
     public const OUTPUT_MODE_SAVE = 'save';
 
