@@ -175,7 +175,6 @@ class Processor
     private function spawnWithBrowser(int $id, string $url): void
     {
         $requestType = strtolower($this->config->requestType);
-        $requestType = 'get';
 
         $this->browser->$requestType($url)->then(
             function (ResponseInterface $response) use ($id, $url) {
