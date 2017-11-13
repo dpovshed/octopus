@@ -13,6 +13,8 @@ use React\EventLoop\Timer\Timer;
 use React\HttpClient\Client as HttpClient;
 use React\HttpClient\Request;
 use React\HttpClient\Response;
+use function React\Promise\race;
+use function React\Promise\Timer\reject;
 
 /**
  * Processor core.
@@ -166,7 +168,7 @@ class Processor
 
     private function spawn(int $id, string $url): void
     {
-        $this->spawnWithBrowser($id, $url); //Experimental approach using Browser HTTP-Client
+        $this->spawnWithBrowser($id, $url); //Experimental approach using Browser HTTP-Client, which supports (racing) promises
         return;
 
         $this->spawnWithHttpClient($id, $url);
@@ -176,7 +178,11 @@ class Processor
     {
         $requestType = strtolower($this->config->requestType);
 
-        $this->browser->$requestType($url)->then(
+        race([
+                reject(10.0, $this->loop),
+                $this->browser->$requestType($url)
+            ]
+        )->then(
             function (ResponseInterface $response) use ($id, $url) {
                 $this->countAdditionalHeaders($response->getHeaders());
 
