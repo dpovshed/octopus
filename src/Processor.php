@@ -11,7 +11,6 @@ use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LibEventLoop;
 use React\EventLoop\Timer\Timer;
 use React\HttpClient\Client as HttpClient;
-use React\HttpClient\Factory as HttpClientFactory;
 use React\HttpClient\Request;
 use React\HttpClient\Response;
 
@@ -84,7 +83,7 @@ class Processor
     private $dnsResolver;
 
     /**
-     * @var HttpClient $client
+     * @var HttpClient
      */
     private $client;
 
@@ -132,76 +131,6 @@ class Processor
         }
     }
 
-    public function onData($data, Response $response): void
-    {
-        $this->countAdditionalHeaders($response->getHeaders());
-
-        if ($this->saveEnabled) {
-            $path = $this->savePath . self::makeFilename($response->octopusUrl, $response->octopusId);
-            if (file_put_contents($path, $data, FILE_APPEND) === false) {
-                throw new Exception("Cannot write file: $path");
-            }
-        }
-        $this->totalData += strlen($data);
-    }
-
-    private function countAdditionalHeaders(array $headers): void
-    {
-        if (is_array($this->config->additionalResponseHeadersToCount) && count($this->config->additionalResponseHeadersToCount) > 0) {
-            foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
-                if (isset($headers[$additionalHeader])) {
-                    $headerLabel = sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader]);
-                    $this->statCodes[$headerLabel] = isset($this->statCodes[$headerLabel]) ? $this->statCodes[$headerLabel] + 1 : 1;
-                }
-            }
-        }
-    }
-
-    public static function makeFilename(string $octopusUrl, int $octopusId): string
-    {
-        return preg_replace('/[^a-zA-Z0-9]/', '_', $octopusUrl . '_____' . $octopusId);
-    }
-
-    public function onRequestError(Exception $e, Request $request): void
-    {
-        $this->statCodes['failed']++;
-        $this->targetManager->done($request->octopusId);
-        $this->brokenUrls[$request->octopusUrl] = 'fail';
-
-        echo $request->octopusUrl . ' request error: ' . $e->getMessage() . PHP_EOL;
-    }
-
-    public function onResponseError(Exception $e, Response $response): void
-    {
-        $this->statCodes['failed']++;
-        $this->targetManager->done($response->octopusId);
-        $this->brokenUrls[$response->octopusUrl] = 'fail';
-
-        echo $response->octopusUrl . ' response error: ' . $e->getMessage() . PHP_EOL;
-    }
-
-    public function onEnd($data, Response $response): void
-    {
-        $httpResponseCode = $response->getCode();
-        $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
-        $this->targetManager->done($response->octopusId);
-        if (in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
-            $headers = $response->getHeaders();
-            $this->targetManager->add($headers['Location']);
-            return;
-        }
-
-        // Any 2xx code is 'success' for us, if not => failure
-        if ((int)($httpResponseCode / 100) !== 2) {
-            $this->brokenUrls[$response->octopusUrl] = $httpResponseCode;
-            return;
-        }
-
-        if (random_int(0, 100) < $this->config->bonusRespawn) {
-            $this->targetManager->add($response->octopusUrl);
-        }
-    }
-
     public function warmUp(): void
     {
         $this->loop = EventLoopFactory::create();
@@ -209,8 +138,7 @@ class Processor
         $dnsResolverFactory = new DnsResolverFactory();
         $this->dnsResolver = $dnsResolverFactory->createCached($this->config->dnsResolver, $this->loop);
 
-        $factory = new HttpClientFactory();
-        $this->client = $factory->create($this->loop, $this->dnsResolver);
+        $this->client = new HttpClient($this->loop);
     }
 
     public function run(): void
@@ -245,11 +173,52 @@ class Processor
         $request->on('response', function (Response $response, Request $request) {
             $response->octopusUrl = $request->octopusUrl;
             $response->octopusId = $request->octopusId;
-            $response->on('data', array($this, 'onData'));
-            $response->on('end', array($this, 'onEnd'));
-            $response->on('error', array($this, 'onResponseError'));
+            $response->on('data', function ($data) use ($response) {
+                $this->countAdditionalHeaders($response->getHeaders());
+
+                if ($this->saveEnabled) {
+                    $path = $this->savePath . self::makeFilename($response->octopusUrl, $response->octopusId);
+                    if (file_put_contents($path, $data, FILE_APPEND) === false) {
+                        throw new Exception("Cannot write file: $path");
+                    }
+                }
+                $this->totalData += strlen($data);
+            });
+            $response->on('end', function () use ($response) {
+                $httpResponseCode = $response->getCode();
+                $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
+                $this->targetManager->done($response->octopusId);
+                if (in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
+                    $headers = $response->getHeaders();
+                    $this->targetManager->add($headers['Location']);
+                    return;
+                }
+
+                // Any 2xx code is 'success' for us, if not => failure
+                if ((int)($httpResponseCode / 100) !== 2) {
+                    $this->brokenUrls[$response->octopusUrl] = $httpResponseCode;
+                    return;
+                }
+
+                if (random_int(0, 100) < $this->config->bonusRespawn) {
+                    $this->targetManager->add($response->octopusUrl);
+                }
+            });
+            $response->on('error', function (Exception $exception) use ($response) {
+                $this->statCodes['failed']++;
+                $this->targetManager->done($response->octopusId);
+                $this->brokenUrls[$response->octopusUrl] = 'fail';
+
+                echo $response->octopusUrl . ' response error: ' . $exception->getMessage() . PHP_EOL;
+            });
         });
-        $request->on('error', array($this, 'onRequestError'));
+        $request->on('error', function (Exception $exception) use ($request) {
+            $this->statCodes['failed']++;
+            $this->targetManager->done($request->octopusId);
+            $this->brokenUrls[$request->octopusUrl] = 'fail';
+
+            echo $request->octopusUrl . ' request error: ' . $exception->getMessage() . PHP_EOL;
+        });
 
         try {
             $request->end();
@@ -262,5 +231,22 @@ class Processor
         }
 
         $this->requests[$id] = $request;
+    }
+
+    private function countAdditionalHeaders(array $headers): void
+    {
+        if (is_array($this->config->additionalResponseHeadersToCount) && count($this->config->additionalResponseHeadersToCount) > 0) {
+            foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
+                if (isset($headers[$additionalHeader])) {
+                    $headerLabel = sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader]);
+                    $this->statCodes[$headerLabel] = isset($this->statCodes[$headerLabel]) ? $this->statCodes[$headerLabel] + 1 : 1;
+                }
+            }
+        }
+    }
+
+    public static function makeFilename(string $octopusUrl, int $octopusId): string
+    {
+        return preg_replace('/[^a-zA-Z0-9]/', '_', $octopusUrl . '_____' . $octopusId);
     }
 }
