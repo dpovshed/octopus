@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Octopus;
 
 use Exception;
-use React\Dns\Resolver\Factory as DnsResolverFactory;
-use React\Dns\Resolver\Resolver as DnsResolver;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LibEventLoop;
 use React\EventLoop\Timer\Timer;
@@ -78,11 +76,6 @@ class Processor
     private $requests = [];
 
     /**
-     * @var DnsResolver
-     */
-    private $dnsResolver;
-
-    /**
      * @var HttpClient
      */
     private $client;
@@ -134,9 +127,6 @@ class Processor
     public function warmUp(): void
     {
         $this->loop = EventLoopFactory::create();
-
-        $dnsResolverFactory = new DnsResolverFactory();
-        $this->dnsResolver = $dnsResolverFactory->createCached($this->config->dnsResolver, $this->loop);
 
         $this->client = new HttpClient($this->loop);
     }
