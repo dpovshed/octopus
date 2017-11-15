@@ -43,6 +43,13 @@ class Processor
     public $brokenUrls = [];
 
     /**
+     * URLs that were redirected to another location.
+     *
+     * @var array
+     */
+    public $redirectedUrls = [];
+
+    /**
      * @var Config
      */
     public $config;
@@ -140,6 +147,9 @@ class Processor
         $this->loop = EventLoopFactory::create();
         $this->client = new HttpClient($this->loop);
         $this->browser = new Browser($this->loop);
+        $this->browser = $this->browser->withOptions([
+            'followRedirects' => $this->config->followRedirects,
+        ]);
     }
 
     public function run(): void
@@ -198,9 +208,12 @@ class Processor
                 $httpResponseCode = $response->getStatusCode();
                 $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
                 $this->targetManager->done($id);
-                if (in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
+
+                if ($this->config->followRedirects && in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
                     $headers = $response->getHeaders();
-                    $this->targetManager->add($headers['Location']);
+                    $newLocation = $headers['Location'];
+                    $this->redirectedUrls[$url] = $newLocation;
+                    $this->targetManager->add($newLocation);
                     return;
                 }
 
@@ -265,9 +278,12 @@ class Processor
                 $httpResponseCode = $response->getCode();
                 $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
                 $this->targetManager->done($id);
-                if (in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
+
+                if ($this->config->followRedirects && in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
                     $headers = $response->getHeaders();
-                    $this->targetManager->add($headers['Location']);
+                    $newLocation = $headers['Location'];
+                    $this->redirectedUrls[$url] = $newLocation;
+                    $this->targetManager->add($newLocation);
                     return;
                 }
 
@@ -281,7 +297,8 @@ class Processor
                     $this->targetManager->add($url);
                 }
             });
-            $response->on('error', function (Exception $exception) use ($id, $url, $response) {
+
+            $response->on('error', function (Exception $exception) use ($id, $url) {
                 $this->statCodes['failed']++;
                 $this->targetManager->done($id);
                 $this->brokenUrls[$url] = 'fail';
@@ -289,7 +306,8 @@ class Processor
                 echo $url . ' response error: ' . $exception->getMessage() . PHP_EOL;
             });
         });
-        $request->on('error', function (Exception $exception) use ($id, $url, $request) {
+
+        $request->on('error', function (Exception $exception) use ($id, $url) {
             $this->statCodes['failed']++;
             $this->targetManager->done($id);
             $this->brokenUrls[$url] = 'fail';
