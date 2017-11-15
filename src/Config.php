@@ -70,6 +70,7 @@ class Config
     public $followRedirects = true;
 
     /**
+
      * If turned on: write list of failed URLs to a file.
      *
      * @var bool

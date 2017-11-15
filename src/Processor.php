@@ -208,6 +208,7 @@ class Processor
                 $httpResponseCode = $response->getStatusCode();
                 $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
                 $this->targetManager->done($id);
+
                 if ($this->config->followRedirects && in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
                     $headers = $response->getHeaders();
                     $newLocation = $headers['Location'];
@@ -277,6 +278,7 @@ class Processor
                 $httpResponseCode = $response->getCode();
                 $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
                 $this->targetManager->done($id);
+
                 if ($this->config->followRedirects && in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
                     $headers = $response->getHeaders();
                     $newLocation = $headers['Location'];
@@ -295,6 +297,7 @@ class Processor
                     $this->targetManager->add($url);
                 }
             });
+
             $response->on('error', function (Exception $exception) use ($id, $url) {
                 $this->statCodes['failed']++;
                 $this->targetManager->done($id);
@@ -303,6 +306,7 @@ class Processor
                 echo $url . ' response error: ' . $exception->getMessage() . PHP_EOL;
             });
         });
+
         $request->on('error', function (Exception $exception) use ($id, $url) {
             $this->statCodes['failed']++;
             $this->targetManager->done($id);
