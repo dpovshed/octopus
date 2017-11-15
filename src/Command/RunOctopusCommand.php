@@ -159,6 +159,7 @@ using a specific concurrency:
                 array(new TableCell('Applied concurrency: ' . $processor->config->concurrency, $rowColumnSpan)),
                 array(new TableCell('Total amount of processed data: ' . $processor->totalData, $rowColumnSpan)),
                 array(new TableCell('Failed to load #URLs: ' . count($processor->brokenUrls), $rowColumnSpan)),
+                array(new TableCell('Redirected #URLs: ' . count($processor->redirectedUrls), $rowColumnSpan)),
             )
         );
         $table->render();

@@ -63,6 +63,13 @@ class Config
     public $concurrency = 5;
 
     /**
+     * In case a requested URL returns a HTTP redirection status code, should it be followed?
+     *
+     * @var bool
+     */
+    public $followRedirects = true;
+
+    /**
      * If turned on: write list of failed URLs to a file.
      *
      * @var bool
