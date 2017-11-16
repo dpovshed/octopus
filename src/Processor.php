@@ -190,7 +190,7 @@ class Processor
 
         race([
                 reject(10.0, $this->loop),
-                $this->browser->$requestType($url)
+                $this->browser->$requestType($url, $this->config->requestHeaders)
             ]
         )->then(
             function (ResponseInterface $response) use ($id, $url) {
