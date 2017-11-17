@@ -27,12 +27,17 @@ class RunOctopusCommand extends Command
     /**
      * @var string
      */
+    private const COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT = 'additionalResponseHeadersToCount';
+
+    /**
+     * @var string
+     */
     private const COMMAND_OPTION_CONCURRENCY = 'concurrency';
 
     /**
      * @var string
      */
-    private const COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT = 'additionalResponseHeadersToCount';
+    private const COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS = 'followRedirects';
 
     /**
      * @var string
@@ -60,8 +65,9 @@ class RunOctopusCommand extends Command
             ->setName('octopus:run')
             ->setDescription('Run the Octopus Sitemap Crawler.')
             ->addArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
-            ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
             ->addOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT, null, InputOption::VALUE_OPTIONAL, 'A comma separated list of the additional response headers to keep track of / count during crawling')
+            ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
+            ->addOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS, null, InputOption::VALUE_OPTIONAL, 'Should the crawler follow HTTP redirects? Default to ' . Config::FOLLOW_HTTP_REDIRECTS_DEFAULT ? 'true' : 'false')
             ->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to ' . Config::REQUEST_HEADER_USER_AGENT_DEFAULT)
             ->setHelp(
                 sprintf(
@@ -102,19 +108,24 @@ using a specific concurrency:
         $config->targetFile = $input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
         $output->writeln('Loading URLs from Sitemap: ' . $config->targetFile);
 
-        if (is_numeric($input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
-            $config->concurrency = (int)$input->getOption(self::COMMAND_OPTION_CONCURRENCY);
-            $output->writeln('Using concurrency: ' . $config->concurrency);
-        }
         if (is_string($input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
             $output->writeln('Keep track of additional response headers: ' . $additionalResponseHeadersToCount);
         }
+        if (is_numeric($input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
+            $config->concurrency = (int)$input->getOption(self::COMMAND_OPTION_CONCURRENCY);
+            $output->writeln('Using concurrency: ' . $config->concurrency);
+        }
+        if (is_string($input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS))) {
+            $followRedirectsValue = $input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS);
+            $config->followRedirects = $followRedirectsValue === 'true' ? true : false;
+            $output->writeln('Follow HTTP redirects: ' . $followRedirectsValue);
+        }
         if (is_string($input->getOption(self::COMMAND_OPTION_USER_AGENT))) {
-            $userAgent = $input->getOption(self::COMMAND_OPTION_USER_AGENT);
-            $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgent;
-            $output->writeln('Use UserAgent for issued requests: ' . $userAgent);
+            $userAgentValue = $input->getOption(self::COMMAND_OPTION_USER_AGENT);
+            $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgentValue;
+            $output->writeln('Use UserAgent for issued requests: ' . $userAgentValue);
         }
 
         return $config;
