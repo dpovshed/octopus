@@ -12,6 +12,9 @@ namespace Octopus;
  */
 class Config
 {
+
+    public const FOLLOW_HTTP_REDIRECTS_DEFAULT = true;
+
     public const OUTPUT_MODE_COUNT = 'count';
     public const OUTPUT_MODE_SAVE = 'save';
 
@@ -67,7 +70,7 @@ class Config
      *
      * @var bool
      */
-    public $followRedirects = true;
+    public $followRedirects = self::FOLLOW_HTTP_REDIRECTS_DEFAULT;
 
     /**
 
