@@ -189,7 +189,7 @@ class Processor
         $requestType = strtolower($this->config->requestType);
 
         race([
-                reject(10.0, $this->loop),
+                reject($this->config->timeout, $this->loop),
                 $this->browser->$requestType($url, $this->config->requestHeaders)
             ]
         )->then(

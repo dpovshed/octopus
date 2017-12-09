@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace Octopus;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 /**
  * Configuration object
@@ -23,9 +24,13 @@ class Config
 
     public const REQUEST_TYPE_GET = 'GET';
     public const REQUEST_TYPE_HEAD = 'HEAD';
+    public const REQUEST_TYPE_DEFAULT = self::REQUEST_TYPE_HEAD;
 
     public const TARGET_TYPE_XML = 'xml';
     public const TARGET_TYPE_TXT = 'txt';
+
+    public const CONCURRENCY_DEFAULT = 5;
+    public const TIMEOUT_DEFAULT = 10.0;
 
     private static $allowedOutputModes = array(
         self::OUTPUT_MODE_COUNT,
@@ -63,7 +68,14 @@ class Config
      *
      * @var int
      */
-    public $concurrency = 5;
+    public $concurrency = self::CONCURRENCY_DEFAULT;
+
+    /**
+     * Number of seconds for request timeout.
+     *
+     * @var int
+     */
+    public $timeout = self::TIMEOUT_DEFAULT;
 
     /**
      * In case a requested URL returns a HTTP redirection status code, should it be followed?
@@ -158,12 +170,36 @@ class Config
 
     public function __construct()
     {
-        assert(in_array($this->outputMode, self::$allowedOutputModes, true), 'Invalid configuration value detected: use an allowed OutputMode: ' . print_r(self::$allowedOutputModes, true));
-        assert(in_array($this->requestType, self::$allowedRequestTypes, true), 'Invalid configuration value detected: use an allowed RequestType: ' . print_r(self::$allowedRequestTypes, true));
-        assert(in_array($this->targetType, self::$allowedTargetTypes, true), 'Invalid configuration value detected: use an allowed TargetType: ' . print_r(self::$allowedTargetTypes, true));
-        assert($this->spawnDelayMax >= $this->spawnDelayMin, 'Invalid configuration value detected: check spawn delay numbers');
-        assert($this->bonusRespawn <= 99, 'Invalid configuration value detected: bonus respawn should be up to 99');
-
         $this->outputDestination .= DIRECTORY_SEPARATOR . time();
+    }
+
+    /**
+     * Validate passed parameters.
+     *
+     * @throws InvalidArgumentException().
+     */
+    public function validate()
+    {
+        if (!in_array($this->outputMode, self::$allowedOutputModes, true)) {
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed OutputMode: ' . print_r(self::$allowedOutputModes, true));
+        }
+        if (!in_array($this->requestType, self::$allowedRequestTypes, true)) {
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed RequestType: ' . print_r(self::$allowedRequestTypes, true));
+        }
+        if (!in_array($this->targetType, self::$allowedTargetTypes, true)) {
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed TargetType: ' . print_r(self::$allowedTargetTypes, true));
+        }
+        if ($this->spawnDelayMax < $this->spawnDelayMin) {
+            throw new InvalidArgumentException('Invalid configuration value detected: check spawn delay numbers');
+        }
+        if ($this->bonusRespawn > 99) {
+            throw new InvalidArgumentException('Invalid configuration value detected: bonus respawn should be up to 99');
+        }
+        if ($this->concurrency < 1) {
+            throw new InvalidArgumentException('Invalid concurrency value');
+        }
+        if ($this->timeout < 0.5) {
+            throw new InvalidArgumentException('Per request timeout is too low');
+        }
     }
 }
