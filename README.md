@@ -14,6 +14,12 @@ using a specific amount of concurrent connections:
 php application.php octopus:run http://www.domain.ext/sitemap.xml --concurrency 15
 ```
 
+more detailed tuning is also available. In the example below system using regular GET request instead of mercifully requesting only headers (default) and with quite strict timeout for request of 3 seconds:
+
+```bash
+php application.php octopus:run http://www.domain.ext/sitemap.xml --concurrency 15 --requestType GET --timeout 3
+```
+
 ## Usage from your own application
 You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options.
 

@@ -37,12 +37,22 @@ class RunOctopusCommand extends Command
     /**
      * @var string
      */
+    private const COMMAND_OPTION_TIMEOUT = 'timeout';
+
+    /**
+     * @var string
+     */
     private const COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS = 'followRedirects';
 
     /**
      * @var string
      */
     private const COMMAND_OPTION_USER_AGENT = 'userAgent';
+
+    /**
+     * @var string
+     */
+    private const COMMAND_OPTION_REQUEST_TYPE = 'requestType';
 
     /**
      * @var string
@@ -66,9 +76,11 @@ class RunOctopusCommand extends Command
             ->setDescription('Run the Octopus Sitemap Crawler.')
             ->addArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
             ->addOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT, null, InputOption::VALUE_OPTIONAL, 'A comma separated list of the additional response headers to keep track of / count during crawling')
-            ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently')
-            ->addOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS, null, InputOption::VALUE_OPTIONAL, 'Should the crawler follow HTTP redirects? Default to ' . Config::FOLLOW_HTTP_REDIRECTS_DEFAULT ? 'true' : 'false')
+            ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently. Defaults to ' . Config::CONCURRENCY_DEFAULT)
+            ->addOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS, null, InputOption::VALUE_OPTIONAL, 'Should the crawler follow HTTP redirects? Defaults to ' . (Config::FOLLOW_HTTP_REDIRECTS_DEFAULT ? 'true' : 'false'))
             ->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to ' . Config::REQUEST_HEADER_USER_AGENT_DEFAULT)
+            ->addOption(self::COMMAND_OPTION_REQUEST_TYPE, null, InputOption::VALUE_OPTIONAL, 'The type of HTTP request, HEAD put lesser load to server while GET loads whole page. Defaults to ' . Config::REQUEST_TYPE_DEFAULT)
+            ->addOption(self::COMMAND_OPTION_TIMEOUT, null, InputOption::VALUE_OPTIONAL, 'Timeout for a request, in seconds. Defaults to ' . Config::TIMEOUT_DEFAULT)
             ->setHelp(
                 sprintf(
                     'Usage:
@@ -127,6 +139,16 @@ using a specific concurrency:
             $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgentValue;
             $output->writeln('Use UserAgent for issued requests: ' . $userAgentValue);
         }
+        if (is_string($input->getOption(self::COMMAND_OPTION_REQUEST_TYPE))) {
+            $config->requestType = $input->getOption(self::COMMAND_OPTION_REQUEST_TYPE);
+            $output->writeln('Using request type: ' . $config->requestType);
+        }
+        if (is_numeric($input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
+            $config->timeout = (float)$input->getOption(self::COMMAND_OPTION_TIMEOUT);
+            $output->writeln('Using per-request timeout: ' . $config->timeout);
+        }
+
+        $config->validate();
 
         return $config;
     }
