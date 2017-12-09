@@ -71,13 +71,6 @@ class Config
     public $concurrency = self::CONCURRENCY_DEFAULT;
 
     /**
-     * Number of seconds for request timeout.
-     *
-     * @var int
-     */
-    public $timeout = self::TIMEOUT_DEFAULT;
-
-    /**
      * In case a requested URL returns a HTTP redirection status code, should it be followed?
      *
      * @var bool
@@ -153,6 +146,13 @@ class Config
      * @var string
      */
     public $targetFile;
+
+    /**
+     * Number of seconds for request timeout.
+     *
+     * @var int
+     */
+    public $timeout = self::TIMEOUT_DEFAULT;
 
     /**
      * How often to update current statistics.

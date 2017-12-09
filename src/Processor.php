@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace Octopus;
 
 use Clue\React\Buzz\Browser;
+use Clue\React\Buzz\Message\ResponseException;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LibEventLoop;
 use React\EventLoop\Timer\Timer;
 use React\HttpClient\Client as HttpClient;
-use React\HttpClient\Request;
-use React\HttpClient\Response;
 use function React\Promise\race;
 use function React\Promise\Timer\reject;
+use React\Promise\Timer\TimeoutException;
 
 /**
  * Processor core.
@@ -26,7 +26,7 @@ class Processor
     /**
      * @var array
      */
-    public $statCodes = ['failed' => 0];
+    public $statCodes = [];
 
     /**
      * Total amount of processed data
@@ -180,8 +180,6 @@ class Processor
     {
         $this->spawnWithBrowser($id, $url); //Experimental approach using Browser HTTP-Client, which supports (racing) promises
         return;
-
-        $this->spawnWithHttpClient($id, $url);
     }
 
     private function spawnWithBrowser(int $id, string $url): void
@@ -228,10 +226,22 @@ class Processor
                 }
             },
             function (Exception $exception) use ($id, $url) {
-                var_dump('There was an error', $exception->getMessage());
-                $this->statCodes['failed']++;
+                $failType = 'failed'; // Generic, cannot qualify with more details.
+                if (is_a($exception, TimeoutException::class)) {
+                    $failType = 'timeouted';
+                }
+                elseif (is_a($exception, ResponseException::class) && $exception->getCode() >= 300) {
+                    // Regular HTTP error code.
+                    $failType = $exception->getCode();
+                }
+
+                if (!isset($this->statCodes[$failType])) {
+                    // Init just to prevent warning.
+                    $this->statCodes[$failType] = 0;
+                }
+                $this->statCodes[$failType]++;
                 $this->targetManager->done($id);
-                $this->brokenUrls[$url] = 'fail';
+                $this->brokenUrls[$url] = $failType;
 
                 echo $url . ' request error: ' . $exception->getMessage() . PHP_EOL;
             }
@@ -259,72 +269,4 @@ class Processor
         return preg_replace('/[^a-zA-Z0-9]/', '_', $octopusUrl . '_____' . $octopusId);
     }
 
-    private function spawnWithHttpClient(int $id, string $url): void
-    {
-        $request = $this->client->request($this->config->requestType, $url, $this->config->requestHeaders);
-        $request->on('response', function (Response $response, Request $request) use ($id, $url) {
-            $response->on('data', function ($data) use ($id, $url, $response) {
-                $this->countAdditionalHeaders($response->getHeaders());
-
-                if ($this->saveEnabled) {
-                    $path = $this->savePath . $this->makeFilename($url, $id);
-                    if (file_put_contents($path, $data, FILE_APPEND) === false) {
-                        throw new Exception("Cannot write file: $path");
-                    }
-                }
-                $this->totalData += strlen($data);
-            });
-            $response->on('end', function () use ($id, $url, $response) {
-                $httpResponseCode = $response->getCode();
-                $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
-                $this->targetManager->done($id);
-
-                if ($this->config->followRedirects && in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
-                    $headers = $response->getHeaders();
-                    $newLocation = $headers['Location'];
-                    $this->redirectedUrls[$url] = $newLocation;
-                    $this->targetManager->add($newLocation);
-                    return;
-                }
-
-                // Any 2xx code is 'success' for us, if not => failure
-                if ((int)($httpResponseCode / 100) !== 2) {
-                    $this->brokenUrls[$url] = $httpResponseCode;
-                    return;
-                }
-
-                if (random_int(0, 100) < $this->config->bonusRespawn) {
-                    $this->targetManager->add($url);
-                }
-            });
-
-            $response->on('error', function (Exception $exception) use ($id, $url) {
-                $this->statCodes['failed']++;
-                $this->targetManager->done($id);
-                $this->brokenUrls[$url] = 'fail';
-
-                echo $url . ' response error: ' . $exception->getMessage() . PHP_EOL;
-            });
-        });
-
-        $request->on('error', function (Exception $exception) use ($id, $url) {
-            $this->statCodes['failed']++;
-            $this->targetManager->done($id);
-            $this->brokenUrls[$url] = 'fail';
-
-            echo $url . ' request error: ' . $exception->getMessage() . PHP_EOL;
-        });
-
-        try {
-            $request->end();
-        } catch (Exception $e) {
-            echo 'Problem of sending request: ' . $e->getMessage() . PHP_EOL;
-        }
-
-        if ($this->config->spawnDelayMax) {
-            usleep(random_int($this->config->spawnDelayMin, $this->config->spawnDelayMax));
-        }
-
-        $this->requests[$id] = $request;
-    }
 }
