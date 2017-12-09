@@ -218,8 +218,8 @@ using a specific concurrency:
     private function outputBrokenUrls(OctopusProcessor $processor, OutputInterface $output, string $outputDestination): void
     {
         $content = array();
-        foreach ($processor->brokenUrls as $url => $httpStatusCode) {
-            $label = sprintf('Failed %d: %s', $httpStatusCode, $url);
+        foreach ($processor->brokenUrls as $url => $reason) {
+            $label = sprintf('Failed %s: %s', $reason, $url);
             $output->writeln($label);
             $content[] = $label;
         }
