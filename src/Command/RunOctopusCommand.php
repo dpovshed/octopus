@@ -172,6 +172,7 @@ using a specific concurrency:
 
     private function renderResultsTable(OutputInterface $output, OctopusProcessor $processor): void
     {
+        ksort($processor->statCodes);
         $rowColumnSpan = array('colspan' => count($processor->statCodes));
 
         $table = new Table($output);
