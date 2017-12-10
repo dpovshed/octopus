@@ -148,7 +148,8 @@ class Processor
         $this->client = new HttpClient($this->loop);
         $this->browser = new Browser($this->loop);
         $this->browser = $this->browser->withOptions([
-            'followRedirects' => $this->config->followRedirects,
+            // We are using own mechanism of following redirects to correctly count these.
+            'followRedirects' => false,
         ]);
     }
 
@@ -178,7 +179,7 @@ class Processor
 
     private function spawn(int $id, string $url): void
     {
-        $this->spawnWithBrowser($id, $url); //Experimental approach using Browser HTTP-Client, which supports (racing) promises
+        $this->spawnWithBrowser($id, $url);
         return;
     }
 
@@ -209,7 +210,7 @@ class Processor
 
                 if ($this->config->followRedirects && in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
                     $headers = $response->getHeaders();
-                    $newLocation = $headers['Location'];
+                    $newLocation = $headers['Location'][0];
                     $this->redirectedUrls[$url] = $newLocation;
                     $this->targetManager->add($newLocation);
                     return;
