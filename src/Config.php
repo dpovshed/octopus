@@ -3,17 +3,14 @@
 declare(strict_types=1);
 
 namespace Octopus;
+
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 /**
- * Configuration object
- *
- * @package Octopus
- *
+ * Configuration object.
  */
 class Config
 {
-
     public const FOLLOW_HTTP_REDIRECTS_DEFAULT = true;
 
     public const OUTPUT_MODE_COUNT = 'count';
@@ -31,21 +28,6 @@ class Config
 
     public const CONCURRENCY_DEFAULT = 5;
     public const TIMEOUT_DEFAULT = 10.0;
-
-    private static $allowedOutputModes = array(
-        self::OUTPUT_MODE_COUNT,
-        self::OUTPUT_MODE_SAVE,
-    );
-
-    private static $allowedRequestTypes = array(
-        self::REQUEST_TYPE_GET,
-        self::REQUEST_TYPE_HEAD,
-    );
-
-    private static $allowedTargetTypes = array(
-        self::TARGET_TYPE_XML,
-        self::TARGET_TYPE_TXT,
-    );
 
     /**
      * An array of some additional response headers to count.
@@ -78,7 +60,6 @@ class Config
     public $followRedirects = self::FOLLOW_HTTP_REDIRECTS_DEFAULT;
 
     /**
-
      * If turned on: write list of failed URLs to a file.
      *
      * @var bool
@@ -93,7 +74,7 @@ class Config
     public $outputDestination = '/tmp';
 
     /**
-     * Either 'save' or 'count'
+     * Either 'save' or 'count'.
      *
      * @var string
      */
@@ -104,9 +85,9 @@ class Config
      *
      * @var array
      */
-    public $requestHeaders = array(
+    public $requestHeaders = [
         self::REQUEST_HEADER_USER_AGENT => self::REQUEST_HEADER_USER_AGENT_DEFAULT,
-    );
+    ];
 
     /**
      * Type of the request, 'GET'/'HEAD'.
@@ -168,26 +149,41 @@ class Config
      */
     public $timerQueue = 0.007;
 
+    private static $allowedOutputModes = [
+        self::OUTPUT_MODE_COUNT,
+        self::OUTPUT_MODE_SAVE,
+    ];
+
+    private static $allowedRequestTypes = [
+        self::REQUEST_TYPE_GET,
+        self::REQUEST_TYPE_HEAD,
+    ];
+
+    private static $allowedTargetTypes = [
+        self::TARGET_TYPE_XML,
+        self::TARGET_TYPE_TXT,
+    ];
+
     public function __construct()
     {
-        $this->outputDestination .= DIRECTORY_SEPARATOR . time();
+        $this->outputDestination .= DIRECTORY_SEPARATOR.\time();
     }
 
     /**
      * Validate passed parameters.
      *
-     * @throws InvalidArgumentException().
+     * @throws invalidArgumentException()
      */
-    public function validate()
+    public function validate(): void
     {
-        if (!in_array($this->outputMode, self::$allowedOutputModes, true)) {
-            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed OutputMode: ' . print_r(self::$allowedOutputModes, true));
+        if (!\in_array($this->outputMode, self::$allowedOutputModes, true)) {
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed OutputMode: '.\print_r(self::$allowedOutputModes, true));
         }
-        if (!in_array($this->requestType, self::$allowedRequestTypes, true)) {
-            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed RequestType: ' . print_r(self::$allowedRequestTypes, true));
+        if (!\in_array($this->requestType, self::$allowedRequestTypes, true)) {
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed RequestType: '.\print_r(self::$allowedRequestTypes, true));
         }
-        if (!in_array($this->targetType, self::$allowedTargetTypes, true)) {
-            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed TargetType: ' . print_r(self::$allowedTargetTypes, true));
+        if (!\in_array($this->targetType, self::$allowedTargetTypes, true)) {
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed TargetType: '.\print_r(self::$allowedTargetTypes, true));
         }
         if ($this->spawnDelayMax < $this->spawnDelayMin) {
             throw new InvalidArgumentException('Invalid configuration value detected: check spawn delay numbers');
