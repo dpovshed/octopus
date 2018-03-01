@@ -8,12 +8,9 @@ use Exception;
 
 /**
  * Define all aspects of managing list and states of target URLs.
- *
- * @package Octopus
  */
 class TargetManager
 {
-
     /**
      * @var array
      */
@@ -41,8 +38,8 @@ class TargetManager
 
     public function populate(): int
     {
-        if (!($data = @file_get_contents($this->config->targetFile))) {
-            throw new Exception(error_get_last()['message']);
+        if (!($data = @\file_get_contents($this->config->targetFile))) {
+            throw new Exception(\error_get_last()['message']);
         }
 
         switch ($this->config->targetType) {
@@ -53,22 +50,22 @@ class TargetManager
                 $mask = "/^\s*((?U).+)\s*$/mi";
                 break;
             default:
-                throw new Exception('Unsupported file type: ' . $this->config->targetType);
+                throw new Exception('Unsupported file type: '.$this->config->targetType);
         }
         $matches = [];
-        if (!preg_match_all($mask, $data, $matches)) {
+        if (!\preg_match_all($mask, $data, $matches)) {
             throw new Exception('No URL entries found');
         }
         $this->queuedUrls = $matches[1];
 
-        return count($this->queuedUrls);
+        return \count($this->queuedUrls);
     }
 
     public function add(string $url): int
     {
         $this->queuedUrls[] = $url;
 
-        return max(array_keys($this->queuedUrls));
+        return \max(\array_keys($this->queuedUrls));
     }
 
     public function done(int $id): void
@@ -80,7 +77,8 @@ class TargetManager
     public function retry(int $id): int
     {
         $this->queuedUrls[] = $this->finishedUrls[$id];
-        return max(array_keys($this->queuedUrls));
+
+        return \max(\array_keys($this->queuedUrls));
     }
 
     /**
@@ -90,8 +88,8 @@ class TargetManager
      */
     public function launchNext(): array
     {
-        assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
-        $id = key($this->queuedUrls);
+        \assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
+        $id = \key($this->queuedUrls);
         $url = $this->queuedUrls[$id];
         $this->launch($id);
 
@@ -102,8 +100,6 @@ class TargetManager
      * This one normally used for relaunching.
      *
      * @param int $id
-     *
-     * @return void
      */
     public function launch(int $id): void
     {
@@ -118,8 +114,8 @@ class TargetManager
      */
     public function launchAny(): array
     {
-        assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
-        $id = array_rand($this->queuedUrls);
+        \assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
+        $id = \array_rand($this->queuedUrls);
         $url = $this->queuedUrls[$id];
         $this->launch($id);
 
@@ -128,7 +124,7 @@ class TargetManager
 
     public function countFinished(): int
     {
-        return count($this->finishedUrls);
+        return \count($this->finishedUrls);
     }
 
     public function hasFreeSlots(): bool
@@ -138,17 +134,17 @@ class TargetManager
 
     public function getFreeSlots(): int
     {
-        return min($this->config->concurrency - $this->countRunning(), $this->countQueue());
+        return \min($this->config->concurrency - $this->countRunning(), $this->countQueue());
     }
 
     public function countRunning(): int
     {
-        return count($this->runningUrls);
+        return \count($this->runningUrls);
     }
 
     public function countQueue(): int
     {
-        return count($this->queuedUrls);
+        return \count($this->queuedUrls);
     }
 
     public function noMoreUrlsToProcess(): bool
