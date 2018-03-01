@@ -117,7 +117,7 @@ class Config
      *
      * Either 'xml' or 'txt'
      *
-     * @var @var string
+     * @var string
      */
     public $targetType = self::TARGET_TYPE_XML;
 
@@ -131,7 +131,7 @@ class Config
     /**
      * Number of seconds for request timeout.
      *
-     * @var int
+     * @var float
      */
     public $timeout = self::TIMEOUT_DEFAULT;
 
