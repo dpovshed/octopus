@@ -5,12 +5,34 @@ declare(strict_types=1);
 namespace Octopus;
 
 use Exception;
+use SimpleXMLElement;
 
 /**
  * Define all aspects of managing list and states of target URLs.
  */
 class TargetManager
 {
+    /**
+     * @see https://www.sitemaps.org/protocol.html
+     *
+     * @var string
+     */
+    private const XML_SITEMAP_NAMESPACE = 'http://www.sitemaps.org/schemas/sitemap/0.9';
+
+    /**
+     * @see https://www.sitemaps.org/protocol.html#index
+     *
+     * @var string
+     */
+    private const XML_SITEMAP_INDEX_ROOT_ELEMENT = 'sitemapindex';
+
+    /**
+     * @see https://www.sitemaps.org/protocol.html#index
+     *
+     * @var string
+     */
+    private const XML_SITEMAP_ROOT_ELEMENT = 'sitemap';
+
     /**
      * @var array
      */
@@ -44,6 +66,18 @@ class TargetManager
 
         switch ($this->config->targetType) {
             case 'xml':
+                $xmlElement = new SimpleXMLElement($data);
+                if ($this->isXmlSitemapIndex($xmlElement)) {
+                    $this->processSitemapIndex($xmlElement);
+
+                    return \count($this->queuedUrls);
+                }
+                if ($this->isXmlSitemap($xmlElement)) {
+                    $this->processSitemapElement($xmlElement);
+
+                    return \count($this->queuedUrls);
+                }
+
                 $mask = "/\<loc\>(.+)\<\/loc\>/miU";
                 break;
             case 'txt':
@@ -155,5 +189,56 @@ class TargetManager
     public function countQueuedAndRunningUrls(): int
     {
         return $this->countQueue() + $this->countRunning();
+    }
+
+    private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
+    {
+        $xmlRootElement = $xmlElement->getName();
+
+        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT;
+    }
+
+    private function isXmlSitemapIndex(SimpleXMLElement $xmlElement): bool
+    {
+        $xmlRootElement = $xmlElement->getName();
+
+        return $xmlRootElement === self::XML_SITEMAP_INDEX_ROOT_ELEMENT;
+    }
+
+    private function processSitemapIndex(SimpleXMLElement $xmlElement): void
+    {
+        if ($sitemapLocationElements = $this->getSitemapLocationElements($xmlElement)) {
+            foreach ($sitemapLocationElements as $sitemapLocationElement) {
+                $sitemapUrl = (string) $sitemapLocationElement;
+                $this->processSitemapUrl($sitemapUrl);
+            }
+        }
+    }
+
+    private function processSitemapUrl(string $sitemapUrl): void
+    {
+        if ($sitemapElement = \simplexml_load_file($sitemapUrl)) {
+            $this->processSitemapElement($sitemapElement);
+        }
+    }
+
+    private function processSitemapElement(SimpleXMLElement $sitemapElement): void
+    {
+        if ($sitemapLocationElements = $this->getSitemapLocationElements($sitemapElement)) {
+            foreach ($sitemapLocationElements as $sitemapLocationElement) {
+                $sitemapUrl = (string) $sitemapLocationElement;
+                $this->queuedUrls[] = $sitemapUrl;
+            }
+        }
+    }
+
+    private function getSitemapLocationElements(SimpleXMLElement $xmlElement): ?array
+    {
+        $xmlElement->registerXPathNamespace('sitemap', self::XML_SITEMAP_NAMESPACE);
+        if ($sitemapLocationElements = $xmlElement->xpath('//sitemap:loc')) {
+            return $sitemapLocationElements;
+        }
+
+        return null;
     }
 }
