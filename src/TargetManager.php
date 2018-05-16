@@ -205,9 +205,9 @@ class TargetManager
         return $xmlRootElement === self::XML_SITEMAP_INDEX_ROOT_ELEMENT;
     }
 
-    private function processSitemapIndex(SimpleXMLElement $xmlElement): void
+    private function processSitemapIndex(SimpleXMLElement $sitemapIndexElement): void
     {
-        if ($sitemapLocationElements = $this->getSitemapLocationElements($xmlElement)) {
+        if ($sitemapLocationElements = $this->getSitemapLocationElements($sitemapIndexElement)) {
             foreach ($sitemapLocationElements as $sitemapLocationElement) {
                 $sitemapUrl = (string) $sitemapLocationElement;
                 $this->processSitemapUrl($sitemapUrl);
