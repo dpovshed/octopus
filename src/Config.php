@@ -11,22 +11,64 @@ use Symfony\Component\Console\Exception\InvalidArgumentException;
  */
 class Config
 {
+    /**
+     * @var bool
+     */
     public const FOLLOW_HTTP_REDIRECTS_DEFAULT = true;
 
+    /**
+     * @var string
+     */
     public const OUTPUT_MODE_COUNT = 'count';
+
+    /**
+     * @var string
+     */
     public const OUTPUT_MODE_SAVE = 'save';
 
+    /**
+     * @var string
+     */
     public const REQUEST_HEADER_USER_AGENT = 'User-Agent';
+
+    /**
+     * @var string
+     */
     public const REQUEST_HEADER_USER_AGENT_DEFAULT = 'Octopus/1.0';
 
+    /**
+     * @var string
+     */
     public const REQUEST_TYPE_GET = 'GET';
+
+    /**
+     * @var string
+     */
     public const REQUEST_TYPE_HEAD = 'HEAD';
+
+    /**
+     * @var string
+     */
     public const REQUEST_TYPE_DEFAULT = self::REQUEST_TYPE_HEAD;
 
+    /**
+     * @var string
+     */
     public const TARGET_TYPE_XML = 'xml';
+
+    /**
+     * @var string
+     */
     public const TARGET_TYPE_TXT = 'txt';
 
+    /**
+     * @var int
+     */
     public const CONCURRENCY_DEFAULT = 5;
+
+    /**
+     * @var float
+     */
     public const TIMEOUT_DEFAULT = 10.0;
 
     /**
@@ -117,7 +159,7 @@ class Config
      *
      * Either 'xml' or 'txt'
      *
-     * @var @var string
+     * @var string
      */
     public $targetType = self::TARGET_TYPE_XML;
 
@@ -131,7 +173,7 @@ class Config
     /**
      * Number of seconds for request timeout.
      *
-     * @var int
+     * @var float
      */
     public $timeout = self::TIMEOUT_DEFAULT;
 
