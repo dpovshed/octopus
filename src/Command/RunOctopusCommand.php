@@ -117,7 +117,7 @@ using a specific concurrency:
         $this->getLogger()->debug('Starting Octopus Sitemap Crawler');
 
         $config = $this->determineConfiguration($input);
-        $targetManager = new OctopusTargetManager($config);
+        $targetManager = new OctopusTargetManager($config, $this->getLogger());
         $processor = new OctopusProcessor($config, $targetManager);
 
         $this->runProcessor($processor, $targetManager);
