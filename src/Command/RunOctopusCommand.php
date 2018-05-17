@@ -81,6 +81,11 @@ class RunOctopusCommand extends Command
      */
     private $output;
 
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
+    }
+
     protected function configure(): void
     {
         $this
