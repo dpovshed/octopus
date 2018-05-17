@@ -8,6 +8,7 @@ use DateTime;
 use Octopus\Config;
 use Octopus\Processor as OctopusProcessor;
 use Octopus\TargetManager as OctopusTargetManager;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Helper\TableCell;
@@ -15,6 +16,7 @@ use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Logger\ConsoleLogger;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class RunOctopusCommand extends Command
@@ -69,6 +71,16 @@ class RunOctopusCommand extends Command
      */
     private $crawlingEndedDateTime;
 
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     * @var OutputInterface
+     */
+    private $output;
+
     protected function configure(): void
     {
         $this
@@ -95,57 +107,62 @@ using a specific concurrency:
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->output = $output;
         $this->crawlingStartedDateTime = new DateTime();
-        $output->writeln('Starting Octopus Sitemap Crawler');
+        $this->getLogger()->debug('Starting Octopus Sitemap Crawler');
 
-        $config = $this->determineConfiguration($input, $output);
+        $config = $this->determineConfiguration($input);
         $targetManager = new OctopusTargetManager($config);
         $processor = new OctopusProcessor($config, $targetManager);
 
-        $this->runProcessor($processor, $targetManager, $output);
+        $this->runProcessor($processor, $targetManager);
 
         $this->crawlingEndedDateTime = new DateTime();
 
-        $output->writeln(\str_repeat(PHP_EOL, 2));
-        $this->renderResultsTable($output, $processor);
+        $this->renderResultsTable($processor);
 
         if ($config->outputBroken && \count($processor->brokenUrls) > 0) {
-            $this->outputBrokenUrls($processor, $output, $config->outputDestination);
+            $this->outputBrokenUrls($processor, $config->outputDestination);
         }
     }
 
-    private function determineConfiguration(InputInterface $input, OutputInterface $output): Config
+    private function getLogger(): LoggerInterface
+    {
+        return $this->logger ?: $this->logger = new ConsoleLogger($this->output);
+    }
+
+    private function determineConfiguration(InputInterface $input): Config
     {
         $config = new Config();
         $config->targetFile = $input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
-        $output->writeln('Loading URLs from Sitemap: '.$config->targetFile);
+        $this->getLogger()->notice('Loading URLs from Sitemap: '.$config->targetFile);
 
         if (\is_string($input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = \explode(',', $additionalResponseHeadersToCount);
-            $output->writeln('Keep track of additional response headers: '.$additionalResponseHeadersToCount);
+            $this->getLogger()->notice('Keep track of additional response headers: '.$additionalResponseHeadersToCount);
         }
         if (\is_numeric($input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
             $config->concurrency = (int) $input->getOption(self::COMMAND_OPTION_CONCURRENCY);
-            $output->writeln('Using concurrency: '.$config->concurrency);
+            $this->getLogger()->notice('Using concurrency: '.$config->concurrency);
         }
         if (\is_string($input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS))) {
             $followRedirectsValue = $input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS);
-            $config->followRedirects = $followRedirectsValue === 'true' ? true : false;
-            $output->writeln('Follow HTTP redirects: '.$followRedirectsValue);
+            $config->followRedirects = $followRedirectsValue === 'true';
+            $this->getLogger()->notice('Follow HTTP redirects: '.$followRedirectsValue);
         }
         if (\is_string($input->getOption(self::COMMAND_OPTION_USER_AGENT))) {
             $userAgentValue = $input->getOption(self::COMMAND_OPTION_USER_AGENT);
             $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgentValue;
-            $output->writeln('Use UserAgent for issued requests: '.$userAgentValue);
+            $this->getLogger()->notice('Use UserAgent for issued requests: '.$userAgentValue);
         }
         if (\is_string($input->getOption(self::COMMAND_OPTION_REQUEST_TYPE))) {
             $config->requestType = $input->getOption(self::COMMAND_OPTION_REQUEST_TYPE);
-            $output->writeln('Using request type: '.$config->requestType);
+            $this->getLogger()->notice('Using request type: '.$config->requestType);
         }
         if (\is_numeric($input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
             $config->timeout = (float) $input->getOption(self::COMMAND_OPTION_TIMEOUT);
-            $output->writeln('Using per-request timeout: '.$config->timeout);
+            $this->getLogger()->notice('Using per-request timeout: '.$config->timeout);
         }
 
         $config->validate();
@@ -153,15 +170,15 @@ using a specific concurrency:
         return $config;
     }
 
-    private function runProcessor(OctopusProcessor $processor, OctopusTargetManager $targetManager, OutputInterface $output): void
+    private function runProcessor(OctopusProcessor $processor, OctopusTargetManager $targetManager): void
     {
         try {
             $numberOfQueuedFiles = $targetManager->populate();
-            $output->writeln($numberOfQueuedFiles.' URLs queued for crawling');
+            $this->getLogger()->debug($numberOfQueuedFiles.' URLs queued for crawling');
             $processor->warmUp();
             $processor->spawnBundle();
         } catch (\Exception $exception) {
-            $output->writeln('Exception on initialization: '.$exception->getMessage());
+            $this->getLogger()->critical('Exception on initialization: '.$exception->getMessage());
             exit;
         }
 
@@ -170,12 +187,16 @@ using a specific concurrency:
         }
     }
 
-    private function renderResultsTable(OutputInterface $output, OctopusProcessor $processor): void
+    private function renderResultsTable(OctopusProcessor $processor): void
     {
+        if (\count($processor->statCodes) === 0) {
+            return;
+        }
+
         \ksort($processor->statCodes);
         $rowColumnSpan = ['colspan' => \count($processor->statCodes)];
 
-        $table = new Table($output);
+        $table = new Table($this->output);
         $table->setHeaders(
             [
                 [new TableCell('Crawling summary for: '.$processor->config->targetFile, $rowColumnSpan)],
@@ -216,12 +237,12 @@ using a specific concurrency:
         return \sprintf('%d seconds', $numberOfSeconds);
     }
 
-    private function outputBrokenUrls(OctopusProcessor $processor, OutputInterface $output, string $outputDestination): void
+    private function outputBrokenUrls(OctopusProcessor $processor, string $outputDestination): void
     {
         $content = [];
         foreach ($processor->brokenUrls as $url => $reason) {
             $label = \sprintf('Failed %s: %s', $reason, $url);
-            $output->writeln($label);
+            $this->getLogger()->debug($label);
             $content[] = $label;
         }
 
