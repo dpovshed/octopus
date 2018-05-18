@@ -258,7 +258,7 @@ class TargetManager
                 $sitemapUrl = (string) $sitemapLocationElement;
                 $this->queuedUrls[] = $sitemapUrl;
 
-                $this->logger->debug('Queued URL {queueLength}: {url}', ['queueLength', \count($this->queuedUrls), 'url' => $sitemapUrl]);
+                $this->logger->debug('Queued URL {queueLength}: {url}', ['queueLength' => \count($this->queuedUrls), 'url' => $sitemapUrl]);
             }
         }
     }
