@@ -246,7 +246,7 @@ class TargetManager
             return $data;
         }
 
-        $this->logger->critical('Failed loading Sitemap {sitemapUrl}, last error messages: {lastErrorMessages}', ['sitemapUrl' => $sitemapUrl, 'lastErrorMessages' => \print_r(\error_get_last(), true)]);
+        $this->logger->critical('Failed loading data from {file}, last error messages: {lastErrorMessages}', ['file' => $file, 'lastErrorMessages' => \print_r(\error_get_last(), true)]);
 
         return null;
     }
@@ -258,7 +258,7 @@ class TargetManager
                 $sitemapUrl = (string) $sitemapLocationElement;
                 $this->queuedUrls[] = $sitemapUrl;
 
-                $this->logger->debug('Queued Sitemap URL {sitemapUrl}', ['sitemapUrl' => $sitemapUrl]);
+                $this->logger->debug('Queued URL {queueLength}: {url}', ['queueLength', \count($this->queuedUrls), 'url' => $sitemapUrl]);
             }
         }
     }
