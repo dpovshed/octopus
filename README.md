@@ -1,5 +1,5 @@
-# Octopus
-Web project using [PHPReact](https://github.com/reactphp/react) library, designed as a sample project which perform sitemap validity checking.
+# Octopus Sitemap Crawler
+Small PHP tool to crawl collections of URLs in a Sitemap using the [PHPReact](https://github.com/reactphp/react) library for asynchronous loading of the URLs. Both plain text files and [XML Sitemaps](https://www.sitemaps.org/protocol.html) are supported.
 
 ![Logo](logo-medium.png)
 
@@ -36,7 +36,7 @@ php application.php octopus:run http://www.domain.ext/sitemap.xml --userAgent 'M
 ```
 
 ## Usage from your own application
-You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options.
+You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options. If required you can use a [PSR3-Logger](https://www.php-fig.org/psr/psr-3/) for logging purposes.
 
 ```php
 use Octopus\Config as OctopusConfig;
@@ -51,7 +51,7 @@ $config->additionalResponseHeadersToCount = array(
 $config->requestHeaders = array(
     'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', //Simulate Google's webcrawler
 );
-$targetManager = new OctopusTargetManager($config, $this->logger); //A [PSR3 Logger](https://www.php-fig.org/psr/psr-3/) can be injected if required
+$targetManager = new OctopusTargetManager($config, $this->logger); //A PSR3 Logger can be injected if required
 $processor = new OctopusProcessor($config, $targetManager);
 try {
     $numberOfQueuedFiles = $targetManager->populate();
