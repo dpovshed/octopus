@@ -70,9 +70,9 @@ class TargetManager
     {
         if (!($data = @\file_get_contents($this->config->targetFile))) {
             $lastErrorMessage = \error_get_last()['message'];
-            $this->logger->critical('Failed loading {targetFile}, last error message: {lastErrorMessage}', ['targetFile' => $this->config->targetFile, 'lastErrorMessage' => $lastErrorMessage]);
+            $this->logger->critical('Failed loading {targetFile}, last error message: {lastErrorMessage}', ['targetFile' => $this->config->targetFile, 'lastErrorMessage' => $lastErrorMessage ?? 'n/a']);
 
-            throw new Exception($lastErrorMessage);
+            throw new Exception($lastErrorMessage ?? 'Failed loading '.$this->config->targetFile);
         }
 
         switch ($this->config->targetType) {
