@@ -9,9 +9,8 @@ use Clue\React\Buzz\Message\ResponseException;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
 use React\EventLoop\Factory as EventLoopFactory;
-use React\EventLoop\LibEventLoop;
+use React\EventLoop\LoopInterface;
 use React\EventLoop\Timer\Timer;
-use React\HttpClient\Client as HttpClient;
 use React\Promise\Timer\TimeoutException;
 use function React\Promise\race;
 use function React\Promise\Timer\reject;
@@ -82,22 +81,12 @@ class Processor
     private $targetManager;
 
     /**
-     * @var array
-     */
-    private $requests = [];
-
-    /**
-     * @var HttpClient
-     */
-    private $client;
-
-    /**
      * @var Browser
      */
     private $browser;
 
     /**
-     * @var LibEventLoop
+     * @var LoopInterface
      */
     private $loop;
 
@@ -140,21 +129,10 @@ class Processor
         }
     }
 
-    public function warmUp(): void
-    {
-        $this->loop = EventLoopFactory::create();
-        $this->client = new HttpClient($this->loop);
-        $this->browser = new Browser($this->loop);
-        $this->browser = $this->browser->withOptions([
-            // We are using own mechanism of following redirects to correctly count these.
-            'followRedirects' => false,
-        ]);
-    }
-
     public function run(): void
     {
-        $this->loop->addPeriodicTimer($this->config->timerUI, [$this, 'timerStatistics']);
-        $this->loop->addPeriodicTimer($this->config->timerQueue, function (Timer $timer) {
+        $this->getLoop()->addPeriodicTimer($this->config->timerUI, [$this, 'timerStatistics']);
+        $this->getLoop()->addPeriodicTimer($this->config->timerQueue, function (Timer $timer) {
             if ($this->targetManager->hasFreeSlots()) {
                 $this->spawnBundle();
             } elseif ($this->targetManager->noMoreUrlsToProcess()) {
@@ -163,23 +141,33 @@ class Processor
         });
 
         $this->started = \microtime(true);
-        $this->loop->run();
+        $this->getLoop()->run();
     }
 
     public function spawnBundle(): void
     {
         for ($i = $this->targetManager->getFreeSlots(); $i > 0; --$i) {
-            //list($id, $url) = $this->targets->launchAny(); //TODO make configurable to either launch the next, or a random URL
-            list($id, $url) = $this->targetManager->launchNext();
+            //[$id, $url] = $this->targets->launchAny(); //TODO make configurable to either launch the next, or a random URL
+            [$id, $url] = $this->targetManager->launchNext();
             $this->spawn($id, $url);
         }
+    }
+
+    private function getBrowser(): Browser
+    {
+        return $this->browser ?: $this->browser = (new Browser($this->getLoop()))->withOptions([
+            'followRedirects' => false, // We are using own mechanism of following redirects to correctly count these.
+        ]);
+    }
+
+    private function getLoop(): LoopInterface
+    {
+        return $this->loop ?: $this->loop = EventLoopFactory::create();
     }
 
     private function spawn(int $id, string $url): void
     {
         $this->spawnWithBrowser($id, $url);
-
-        return;
     }
 
     private function spawnWithBrowser(int $id, string $url): void
@@ -187,8 +175,8 @@ class Processor
         $requestType = \mb_strtolower($this->config->requestType);
 
         race([
-                reject($this->config->timeout, $this->loop),
-                $this->browser->$requestType($url, $this->config->requestHeaders),
+                reject($this->config->timeout, $this->getLoop()),
+                $this->getBrowser()->$requestType($url, $this->config->requestHeaders),
             ]
         )->then(
             function (ResponseInterface $response) use ($id, $url) {
