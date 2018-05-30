@@ -178,8 +178,8 @@ using a specific concurrency:
     private function runProcessor(OctopusProcessor $processor, TargetManager $targetManager): void
     {
         try {
-            $numberOfQueuedFiles = $targetManager->populate();
-            $this->getLogger()->debug($numberOfQueuedFiles.' URLs queued for crawling');
+            $targetManager->populate();
+            $this->getLogger()->debug($targetManager->countQueuedUrls().' URLs queued for crawling');
         } catch (\Exception $exception) {
             $this->getLogger()->critical('Exception on initialization: '.$exception->getMessage());
             exit;

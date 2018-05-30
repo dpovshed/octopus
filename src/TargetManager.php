@@ -66,7 +66,7 @@ class TargetManager
         return $this->queuedUrls;
     }
 
-    public function populate(): int
+    public function populate(): void
     {
         if (!($data = @\file_get_contents($this->config->targetFile))) {
             $lastErrorMessage = \error_get_last()['message'];
@@ -81,12 +81,12 @@ class TargetManager
                 if ($this->isXmlSitemapIndex($xmlElement)) {
                     $this->processSitemapIndex($xmlElement);
 
-                    return \count($this->queuedUrls);
+                    return;
                 }
                 if ($this->isXmlSitemap($xmlElement)) {
                     $this->processSitemapElement($xmlElement);
 
-                    return \count($this->queuedUrls);
+                    return;
                 }
 
                 $mask = "/\<loc\>(.+)\<\/loc\>/miU";
@@ -102,7 +102,10 @@ class TargetManager
             throw new Exception('No URL entries found');
         }
         $this->queuedUrls = $matches[1];
+    }
 
+    public function countQueuedUrls(): int
+    {
         return \count($this->queuedUrls);
     }
 

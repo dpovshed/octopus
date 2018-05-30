@@ -137,9 +137,18 @@ class Processor
         };
     }
 
+    /**
+     * TODO: we should probably use the Queue to check whether items are still being processed. However the 'pending' items can not be accessed.
+     *
+     * @see https://github.com/clue/reactphp-mq/issues/12
+     *
+     * @return bool
+     */
     private function noMoreItemsToProcess(): bool
     {
-        return $this->getQueue()->count() + $this->getQueue()->getPending() === 0;
+        return $this->targetManager->countFinished() === $this->targetManager->countQueuedUrls();
+
+        //return $this->getQueue()->count() + $this->getQueue()->getPending() === 0;
     }
 
     private function renderStatistics(): void
