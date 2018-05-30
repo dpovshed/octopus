@@ -1,27 +1,42 @@
-# Octopus
-Web project using [PHPReact](https://github.com/reactphp/react) library, designed as a sample project which perform sitemap validity checking.
+# Octopus Sitemap Crawler
+Small PHP tool to crawl collections of URLs in a Sitemap using the [PHPReact](https://github.com/reactphp/react) library for asynchronous loading of the URLs. Both plain text files and [XML Sitemaps](https://www.sitemaps.org/protocol.html) are supported.
 
 ![Logo](logo-medium.png)
 
 ## Usage from the Command Line Interface (CLI)
 
-```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml
-```
-using a specific amount of concurrent connections:
+Crawl the URLs in a Sitemap with verbose logging (`-vvv`).
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml --concurrency 15
+php application.php octopus:run http://www.domain.ext/sitemap.xml -vvv
 ```
 
-more detailed tuning is also available. In the example below system using regular GET request instead of mercifully requesting only headers (default) and with quite strict timeout for request of 3 seconds:
+Using 15 concurrent connections instead of the default 5 concurrent connections:
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml --concurrency 15 --requestType GET --timeout 3
+php application.php octopus:run http://www.domain.ext/sitemap.xml --concurrency 15 -vvv
+```
+
+Use a `HTTP GET` request instead of the default `HTTP HEAD`. Note that `HTTP HEAD` requests involve less data transfer since no body is involved:
+
+```bash
+php application.php octopus:run http://www.domain.ext/sitemap.xml --requestType GET -vvv
+```
+
+Use a timeout of 3 seconds instead of the default 10 seconds:
+
+```bash
+php application.php octopus:run http://www.domain.ext/sitemap.xml --timeout 3 -vvv
+```
+
+Use a specific UserAgent instead of the default `Octopus/1.0`, for example, to simulate a search engine crawling a sitemap:
+
+```bash
+php application.php octopus:run http://www.domain.ext/sitemap.xml --userAgent 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' -vvv
 ```
 
 ## Usage from your own application
-You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options.
+You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options. If required you can use a [PSR3-Logger](https://www.php-fig.org/psr/psr-3/) for logging purposes.
 
 ```php
 use Octopus\Config as OctopusConfig;
@@ -36,7 +51,7 @@ $config->additionalResponseHeadersToCount = array(
 $config->requestHeaders = array(
     'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', //Simulate Google's webcrawler
 );
-$targetManager = new OctopusTargetManager($config);
+$targetManager = new OctopusTargetManager($config, $this->logger); //A PSR3 Logger can be injected if required
 $processor = new OctopusProcessor($config, $targetManager);
 try {
     $numberOfQueuedFiles = $targetManager->populate();
@@ -59,6 +74,5 @@ $this->logger->info('Failed to load #URLs: ' . count($processor->brokenUrls));
 ```
 
 ## Limitations
-Since currently Octopus is mainly educational tool it does not handle all 3xx
-errors, loop redirects and other advanced cases.
+Currently Octopus is mainly an experimental / educational tool. Advanced use cases in HTTP response handling might not be supported.
 

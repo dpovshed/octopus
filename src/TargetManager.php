@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Octopus;
 
 use Exception;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use SimpleXMLElement;
 
 /**
@@ -34,6 +36,21 @@ class TargetManager
     private const XML_SITEMAP_ROOT_ELEMENT = 'sitemap';
 
     /**
+     * @var Config
+     */
+    private $config;
+
+    /**
+     * @var array
+     */
+    private $finishedUrls = [];
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * @var array
      */
     private $queuedUrls = [];
@@ -43,25 +60,19 @@ class TargetManager
      */
     private $runningUrls = [];
 
-    /**
-     * @var array
-     */
-    private $finishedUrls = [];
-
-    /**
-     * @var Config
-     */
-    private $config;
-
-    public function __construct(Config $config)
+    public function __construct(Config $config, LoggerInterface $logger = null)
     {
         $this->config = $config;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function populate(): int
     {
         if (!($data = @\file_get_contents($this->config->targetFile))) {
-            throw new Exception(\error_get_last()['message']);
+            $lastErrorMessage = \error_get_last()['message'];
+            $this->logger->critical('Failed loading {targetFile}, last error message: {lastErrorMessage}', ['targetFile' => $this->config->targetFile, 'lastErrorMessage' => $lastErrorMessage ?? 'n/a']);
+
+            throw new Exception($lastErrorMessage ?? 'Failed loading '.$this->config->targetFile);
         }
 
         switch ($this->config->targetType) {
@@ -217,9 +228,27 @@ class TargetManager
 
     private function processSitemapUrl(string $sitemapUrl): void
     {
-        if ($sitemapElement = \simplexml_load_file($sitemapUrl)) {
-            $this->processSitemapElement($sitemapElement);
+        if ($data = $this->loadData($sitemapUrl)) {
+            try {
+                $sitemapElement = @new SimpleXMLElement($data);
+                $this->processSitemapElement($sitemapElement);
+            } catch (Exception $exception) {
+                $this->logger->critical('Caught exception while processing XML Sitemap {sitemapUrl}: {exceptionMessage}', ['sitemapUrl' => $sitemapUrl, 'exceptionMessage' => $exception->getMessage()]);
+            }
         }
+    }
+
+    private function loadData(string $file): ?string
+    {
+        if ($data = @\file_get_contents($file)) {
+            $this->logger->debug('Loaded data from {file}, data length {dataLength}', ['file' => $file, 'dataLength' => \mb_strlen($data)]);
+
+            return $data;
+        }
+
+        $this->logger->critical('Failed loading data from {file}, last error messages: {lastErrorMessages}', ['file' => $file, 'lastErrorMessages' => \print_r(\error_get_last(), true)]);
+
+        return null;
     }
 
     private function processSitemapElement(SimpleXMLElement $sitemapElement): void
@@ -228,6 +257,8 @@ class TargetManager
             foreach ($sitemapLocationElements as $sitemapLocationElement) {
                 $sitemapUrl = (string) $sitemapLocationElement;
                 $this->queuedUrls[] = $sitemapUrl;
+
+                $this->logger->debug('Queued URL {queueLength}: {url}', ['queueLength' => \count($this->queuedUrls), 'url' => $sitemapUrl]);
             }
         }
     }
