@@ -7,7 +7,7 @@ namespace Octopus\Command;
 use DateTime;
 use Octopus\Config;
 use Octopus\Processor as OctopusProcessor;
-use Octopus\TargetManager as OctopusTargetManager;
+use Octopus\TargetManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
@@ -117,7 +117,7 @@ using a specific concurrency:
         $this->getLogger()->debug('Starting Octopus Sitemap Crawler');
 
         $config = $this->determineConfiguration($input);
-        $targetManager = new OctopusTargetManager($config, $this->getLogger());
+        $targetManager = new TargetManager($config, $this->getLogger());
         $processor = new OctopusProcessor($config, $targetManager);
 
         $this->runProcessor($processor, $targetManager);
@@ -175,12 +175,11 @@ using a specific concurrency:
         return $config;
     }
 
-    private function runProcessor(OctopusProcessor $processor, OctopusTargetManager $targetManager): void
+    private function runProcessor(OctopusProcessor $processor, TargetManager $targetManager): void
     {
         try {
             $numberOfQueuedFiles = $targetManager->populate();
             $this->getLogger()->debug($numberOfQueuedFiles.' URLs queued for crawling');
-            $processor->warmUp();
             $processor->spawnBundle();
         } catch (\Exception $exception) {
             $this->getLogger()->critical('Exception on initialization: '.$exception->getMessage());

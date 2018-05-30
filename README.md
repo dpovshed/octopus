@@ -56,7 +56,6 @@ $processor = new OctopusProcessor($config, $targetManager);
 try {
     $numberOfQueuedFiles = $targetManager->populate();
     $this->logger->info($numberOfQueuedFiles . ' URLs queued for crawling');
-    $processor->warmUp();
     $processor->spawnBundle();
 } catch (\Exception $e) {
     $this->logger->notice('Exception on initialization: ' . $e->getMessage());
