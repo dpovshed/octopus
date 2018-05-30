@@ -36,19 +36,9 @@ class TargetManager
     private const XML_SITEMAP_ROOT_ELEMENT = 'sitemap';
 
     /**
-     * @var Config
-     */
-    private $config;
-
-    /**
      * @var array
      */
     private $finishedUrls = [];
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
 
     /**
      * @var array
@@ -56,14 +46,24 @@ class TargetManager
     private $queuedUrls = [];
 
     /**
-     * @var array
+     * @var Config
      */
-    private $runningUrls = [];
+    private $config;
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
 
     public function __construct(Config $config, LoggerInterface $logger = null)
     {
         $this->config = $config;
         $this->logger = $logger ?? new NullLogger();
+    }
+
+    public function getQueuedUrls(): array
+    {
+        return $this->queuedUrls;
     }
 
     public function populate(): int
@@ -106,100 +106,19 @@ class TargetManager
         return \count($this->queuedUrls);
     }
 
-    public function add(string $url): int
+    public function add(string $url): void
     {
         $this->queuedUrls[] = $url;
-
-        return \max(\array_keys($this->queuedUrls));
     }
 
-    public function done(int $id): void
+    public function done(int $id, string $url): void
     {
-        $this->finishedUrls[$id] = $this->runningUrls[$id];
-        unset($this->runningUrls[$id]);
-    }
-
-    public function retry(int $id): int
-    {
-        $this->queuedUrls[] = $this->finishedUrls[$id];
-
-        return \max(\array_keys($this->queuedUrls));
-    }
-
-    /**
-     * Launch the next URL in the queue.
-     *
-     * @return array
-     */
-    public function launchNext(): array
-    {
-        \assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
-        $id = \key($this->queuedUrls);
-        $url = $this->queuedUrls[$id];
-        $this->launch($id);
-
-        return [$id, $url];
-    }
-
-    /**
-     * This one normally used for relaunching.
-     *
-     * @param int $id
-     */
-    public function launch(int $id): void
-    {
-        $this->runningUrls[$id] = $this->queuedUrls[$id];
-        unset($this->queuedUrls[$id]);
-    }
-
-    /**
-     * Launch a random URL from the queue.
-     *
-     * @return array
-     */
-    public function launchAny(): array
-    {
-        \assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
-        $id = \array_rand($this->queuedUrls);
-        $url = $this->queuedUrls[$id];
-        $this->launch($id);
-
-        return [$id, $url];
+        $this->finishedUrls[$id] = $url;
     }
 
     public function countFinished(): int
     {
         return \count($this->finishedUrls);
-    }
-
-    public function hasFreeSlots(): bool
-    {
-        return $this->getFreeSlots() > 0;
-    }
-
-    public function getFreeSlots(): int
-    {
-        return \min($this->config->concurrency - $this->countRunning(), $this->countQueue());
-    }
-
-    public function countRunning(): int
-    {
-        return \count($this->runningUrls);
-    }
-
-    public function countQueue(): int
-    {
-        return \count($this->queuedUrls);
-    }
-
-    public function noMoreUrlsToProcess(): bool
-    {
-        return $this->countQueuedAndRunningUrls() === 0;
-    }
-
-    public function countQueuedAndRunningUrls(): int
-    {
-        return $this->countQueue() + $this->countRunning();
     }
 
     private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
