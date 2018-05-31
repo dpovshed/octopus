@@ -215,7 +215,7 @@ class Processor
             $this->totalData += $response->getBody()->getSize();
 
             $httpResponseCode = $response->getStatusCode();
-            $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
+            $this->bumpStatusCode($httpResponseCode);
             $this->targetManager->done($id, $url);
 
             if ($this->config->followRedirects && \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
@@ -241,6 +241,12 @@ class Processor
         };
     }
 
+    private function bumpStatusCode($statusCode): void
+    {
+        $this->statCodes[$statusCode] = $this->statCodes[$statusCode] ?? 0;
+        ++$this->statCodes[$statusCode];
+    }
+
     private function getOnRejectedCallback(int $id, string $url): callable
     {
         return function (Exception $exception) use ($id, $url) {
@@ -251,10 +257,7 @@ class Processor
                 $failType = $exception->getCode(); // Regular HTTP error code.
             }
 
-            if (!isset($this->statCodes[$failType])) {
-                $this->statCodes[$failType] = 0; // Init just to prevent warning.
-            }
-            ++$this->statCodes[$failType];
+            $this->bumpStatusCode($failType);
             $this->targetManager->done($id, $url);
             $this->brokenUrls[$url] = $failType;
 
@@ -275,7 +278,7 @@ class Processor
             foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
                 if (isset($headers[$additionalHeader])) {
                     $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
-                    $this->statCodes[$headerLabel] = isset($this->statCodes[$headerLabel]) ? $this->statCodes[$headerLabel] + 1 : 1;
+                    $this->bumpStatusCode($headerLabel);
                 }
             }
         }
