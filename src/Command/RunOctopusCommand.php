@@ -178,17 +178,14 @@ using a specific concurrency:
     private function runProcessor(OctopusProcessor $processor, TargetManager $targetManager): void
     {
         try {
-            $numberOfQueuedFiles = $targetManager->populate();
-            $this->getLogger()->debug($numberOfQueuedFiles.' URLs queued for crawling');
-            $processor->spawnBundle();
+            $targetManager->populate();
+            $this->getLogger()->debug($targetManager->countQueuedUrls().' URLs queued for crawling');
         } catch (\Exception $exception) {
             $this->getLogger()->critical('Exception on initialization: '.$exception->getMessage());
             exit;
         }
 
-        while ($targetManager->countQueue()) {
-            $processor->run();
-        }
+        $processor->run();
     }
 
     private function renderResultsTable(OctopusProcessor $processor): void
