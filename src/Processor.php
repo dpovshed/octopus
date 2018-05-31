@@ -115,8 +115,8 @@ class Processor
 
         $this->getLoop()->addPeriodicTimer($this->config->timerUI, $this->getTimerStatisticsCallback());
 
+        $queue = $this->getQueue();
         foreach ($this->targetManager->getQueuedUrls() as $id => $url) {
-            $queue = $this->getQueue();
             $queue($id, $url)->then(
                 $this->getOnFulfilledCallback($id, $url),
                 $this->getOnRejectedCallback($id, $url),
