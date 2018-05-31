@@ -163,7 +163,7 @@ class Processor
             \memory_get_usage(true) / 1048576,
             \microtime(true) - $this->started,
             $this->getQueue()->count(),
-            $this->getQueue()->getPending(),
+            \method_exists($this->getQueue(), 'getPending') ? $this->getQueue()->getPending() : 'n/a',
             $this->targetManager->countFinished(),
             \implode(' ', $codeInfo)
         );
