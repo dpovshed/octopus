@@ -159,7 +159,7 @@ class Processor
         }
 
         echo \sprintf(
-            " %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Statistics: %s \r",
+            " %5.1fMB %6.2f sec. Queued/running/done: %d/%s/%d. Statistics: %s \r",
             \memory_get_usage(true) / 1048576,
             \microtime(true) - $this->started,
             $this->getQueue()->count(),
