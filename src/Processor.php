@@ -194,7 +194,7 @@ class Processor
                     $this->totalData += $response->getBody()->getSize();
 
                     $httpResponseCode = $response->getStatusCode();
-                    $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
+                    $this->bumpStatusCode($httpResponseCode);
                     $this->targetManager->done($id);
 
                     if ($this->config->followRedirects && \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
@@ -263,7 +263,7 @@ class Processor
             foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
                 if (isset($headers[$additionalHeader])) {
                     $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
-                    $this->statCodes[$headerLabel] = isset($this->statCodes[$headerLabel]) ? $this->statCodes[$headerLabel] + 1 : 1;
+                    $this->bumpStatusCode($headerLabel);
                 }
             }
         }
