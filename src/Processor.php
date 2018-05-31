@@ -12,8 +12,7 @@ use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
 use React\EventLoop\Timer\Timer;
 use React\Promise\Timer\TimeoutException;
-use function React\Promise\race;
-use function React\Promise\Timer\reject;
+use function React\Promise\Timer\timeout;
 
 /**
  * Processor core.
@@ -168,77 +167,94 @@ class Processor
     private function spawn(int $id, string $url): void
     {
         $this->spawnWithBrowser($id, $url);
+
+        if ($this->config->spawnDelayMax) {
+            \usleep(\random_int($this->config->spawnDelayMin, $this->config->spawnDelayMax));
+        }
     }
 
     private function spawnWithBrowser(int $id, string $url): void
     {
         $requestType = \mb_strtolower($this->config->requestType);
 
-        race([
-                reject($this->config->timeout, $this->getLoop()),
-                $this->getBrowser()->$requestType($url, $this->config->requestHeaders),
-            ]
-        )->then(
-            function (ResponseInterface $response) use ($id, $url) {
-                $this->countAdditionalHeaders($response->getHeaders());
+        $promise = $this->getBrowser()->$requestType($url, $this->config->requestHeaders);
 
-                if ($this->saveEnabled) {
-                    $path = $this->savePath.$this->makeFilename($url, $id);
-                    if (\file_put_contents($path, $response->getBody(), FILE_APPEND) === false) {
-                        throw new Exception("Cannot write file: $path");
+        timeout($promise, $this->config->timeout, $this->getLoop())
+            ->then(
+                function (ResponseInterface $response) use ($id, $url) {
+                    $this->countAdditionalHeaders($response->getHeaders());
+
+                    if ($this->saveEnabled) {
+                        $path = $this->savePath.$this->makeFilename($url, $id);
+                        if (\file_put_contents($path, $response->getBody(), FILE_APPEND) === false) {
+                            throw new Exception("Cannot write file: $path");
+                        }
+                    }
+
+                    $this->totalData += $response->getBody()->getSize();
+
+                    $httpResponseCode = $response->getStatusCode();
+                    $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
+                    $this->targetManager->done($id);
+
+                    if ($this->config->followRedirects && \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
+                        $headers = $response->getHeaders();
+                        $newLocation = $headers['Location'][0];
+                        $this->redirectedUrls[$url] = $newLocation;
+                        $this->targetManager->add($newLocation);
+
+                        return;
+                    }
+
+                    // Any 2xx code is 'success' for us, if not => failure
+                    if ((int) ($httpResponseCode / 100) !== 2) {
+                        $this->brokenUrls[$url] = $httpResponseCode;
+
+                        return;
+                    }
+
+                    if (\random_int(0, 100) < $this->config->bonusRespawn) {
+                        $this->targetManager->add($url);
                     }
                 }
-
-                $this->totalData += $response->getBody()->getSize();
-
-                $httpResponseCode = $response->getStatusCode();
-                $this->statCodes[$httpResponseCode] = isset($this->statCodes[$httpResponseCode]) ? $this->statCodes[$httpResponseCode] + 1 : 1;
-                $this->targetManager->done($id);
-
-                if ($this->config->followRedirects && \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
-                    $headers = $response->getHeaders();
-                    $newLocation = $headers['Location'][0];
-                    $this->redirectedUrls[$url] = $newLocation;
-                    $this->targetManager->add($newLocation);
-
-                    return;
-                }
-
-                // Any 2xx code is 'success' for us, if not => failure
-                if ((int) ($httpResponseCode / 100) !== 2) {
-                    $this->brokenUrls[$url] = $httpResponseCode;
-
-                    return;
-                }
-
-                if (\random_int(0, 100) < $this->config->bonusRespawn) {
-                    $this->targetManager->add($url);
-                }
-            },
-            function (Exception $exception) use ($id, $url) {
-                $failType = 'failed'; // Generic, cannot qualify with more details.
-                if (\is_a($exception, TimeoutException::class)) {
+            )
+            ->otherwise(
+                function (TimeoutException $exception) use ($id, $url) {
                     $failType = 'timeouted';
-                } elseif (\is_a($exception, ResponseException::class) && $exception->getCode() >= 300) {
-                    // Regular HTTP error code.
+                    $this->bumpStatusCode($failType);
+                    $this->targetManager->done($id);
+                    $this->brokenUrls[$url] = $failType;
+
+                    echo $url.' request error: '.$exception->getMessage().PHP_EOL;
+                }
+            )
+            ->otherwise(
+                function (ResponseException $exception) use ($id, $url) {
                     $failType = $exception->getCode();
+                    $this->bumpStatusCode($failType);
+                    $this->targetManager->done($id);
+                    $this->brokenUrls[$url] = $failType;
+
+                    echo $url.' request error: '.$exception->getMessage().PHP_EOL;
                 }
+            )
+            ->otherwise(
+                function ($error) use ($id, $url) {
+                    $failType = 'failed'; // Generic error type, cannot qualify with more details.
+                    $this->bumpStatusCode($failType);
+                    $this->targetManager->done($id);
+                    $this->brokenUrls[$url] = $failType;
 
-                if (!isset($this->statCodes[$failType])) {
-                    // Init just to prevent warning.
-                    $this->statCodes[$failType] = 0;
+                    echo $url.' request error: '.\print_r($error, true).PHP_EOL;
                 }
-                ++$this->statCodes[$failType];
-                $this->targetManager->done($id);
-                $this->brokenUrls[$url] = $failType;
+            );
+    }
 
-                echo $url.' request error: '.$exception->getMessage().PHP_EOL;
-            }
-        );
+    private function bumpStatusCode($statusCode): void
+    {
+        $this->statCodes[$statusCode] = $this->statCodes[$statusCode] ?? 0;
 
-        if ($this->config->spawnDelayMax) {
-            \usleep(\random_int($this->config->spawnDelayMin, $this->config->spawnDelayMax));
-        }
+        ++$this->statCodes[$statusCode];
     }
 
     private function countAdditionalHeaders(array $headers): void
