@@ -72,6 +72,11 @@ class Config
     public const TIMEOUT_DEFAULT = 10.0;
 
     /**
+     * @var float
+     */
+    public const TIMER_UI_DEFAULT = 0.25;
+
+    /**
      * An array of some additional response headers to count.
      *
      * @var array
@@ -182,7 +187,7 @@ class Config
      *
      * @var float
      */
-    public $timerUI = 0.25;
+    public $timerUI = self::TIMER_UI_DEFAULT;
 
     /**
      * How often spawn new request.

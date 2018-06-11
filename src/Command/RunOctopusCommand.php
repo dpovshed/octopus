@@ -44,6 +44,11 @@ class RunOctopusCommand extends Command
     /**
      * @var string
      */
+    private const COMMAND_OPTION_TIMER_UI = 'timerUI';
+
+    /**
+     * @var string
+     */
     private const COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS = 'followRedirects';
 
     /**
@@ -98,6 +103,7 @@ class RunOctopusCommand extends Command
             ->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to '.Config::REQUEST_HEADER_USER_AGENT_DEFAULT)
             ->addOption(self::COMMAND_OPTION_REQUEST_TYPE, null, InputOption::VALUE_OPTIONAL, 'The type of HTTP request, HEAD put lesser load to server while GET loads whole page. Defaults to '.Config::REQUEST_TYPE_DEFAULT)
             ->addOption(self::COMMAND_OPTION_TIMEOUT, null, InputOption::VALUE_OPTIONAL, 'Timeout for a request, in seconds. Defaults to '.Config::TIMEOUT_DEFAULT)
+            ->addOption(self::COMMAND_OPTION_TIMER_UI, null, InputOption::VALUE_OPTIONAL, 'How often to update current statistics in the UserInterface. Defaults to '.Config::TIMER_UI_DEFAULT)
             ->setHelp(
                 \sprintf(
                     'Usage:
@@ -168,6 +174,10 @@ using a specific concurrency:
         if (\is_numeric($input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
             $config->timeout = (float) $input->getOption(self::COMMAND_OPTION_TIMEOUT);
             $this->getLogger()->notice('Using per-request timeout: '.$config->timeout);
+        }
+        if (\is_numeric($input->getOption(self::COMMAND_OPTION_TIMER_UI))) {
+            $config->timerUI = (float) $input->getOption(self::COMMAND_OPTION_TIMER_UI);
+            $this->getLogger()->notice('Using timerUI refresh rate: '.$config->timerUI);
         }
 
         $config->validate();
