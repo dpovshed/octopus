@@ -33,7 +33,14 @@ class TargetManager
      *
      * @var string
      */
-    private const XML_SITEMAP_ROOT_ELEMENT = 'sitemap';
+    private const XML_SITEMAP_ELEMENT = 'sitemap';
+
+    /**
+     * @see https://www.sitemaps.org/protocol.html
+     *
+     * @var string
+     */
+    private const XML_SITEMAP_ROOT_ELEMENT = 'urlset';
 
     /**
      * @var Config
@@ -206,7 +213,8 @@ class TargetManager
     {
         $xmlRootElement = $xmlElement->getName();
 
-        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT;
+        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT //Used by standalone Sitemaps
+            || $xmlRootElement === self::XML_SITEMAP_ELEMENT; //Used when part of a Sitemap Index
     }
 
     private function isXmlSitemapIndex(SimpleXMLElement $xmlElement): bool
