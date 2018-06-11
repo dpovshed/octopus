@@ -106,7 +106,7 @@ class TargetManager
         }
 
         $this->logger->debug('detect URLs using regular expression: '.$mask);
-        
+
         $matches = [];
         if (!\preg_match_all($mask, $data, $matches)) {
             throw new Exception('No URL entries found');
