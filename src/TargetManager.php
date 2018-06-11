@@ -33,7 +33,14 @@ class TargetManager
      *
      * @var string
      */
-    private const XML_SITEMAP_ROOT_ELEMENT = 'sitemap';
+    private const XML_SITEMAP_ELEMENT = 'sitemap';
+
+    /**
+     * @see https://www.sitemaps.org/protocol.html
+     *
+     * @var string
+     */
+    private const XML_SITEMAP_ROOT_ELEMENT = 'urlset';
 
     /**
      * @var Config
@@ -97,6 +104,9 @@ class TargetManager
             default:
                 throw new Exception('Unsupported file type: '.$this->config->targetType);
         }
+
+        $this->logger->debug('detect URLs using regular expression: '.$mask);
+
         $matches = [];
         if (!\preg_match_all($mask, $data, $matches)) {
             throw new Exception('No URL entries found');
@@ -206,7 +216,8 @@ class TargetManager
     {
         $xmlRootElement = $xmlElement->getName();
 
-        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT;
+        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT //Used by standalone Sitemaps
+            || $xmlRootElement === self::XML_SITEMAP_ELEMENT; //Used when part of a Sitemap Index
     }
 
     private function isXmlSitemapIndex(SimpleXMLElement $xmlElement): bool
