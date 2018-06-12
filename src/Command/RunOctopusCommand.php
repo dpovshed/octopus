@@ -7,7 +7,6 @@ namespace Octopus\Command;
 use DateTime;
 use Octopus\Config;
 use Octopus\Processor;
-use Octopus\Url\Queue\Populator as UrlQueuePopulator;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
@@ -129,9 +128,7 @@ using a specific concurrency:
         $this->getLogger()->debug('Starting Octopus Sitemap Crawler');
 
         $config = $this->determineConfiguration($input);
-        //$urlQueuePopulator = new UrlQueuePopulator($config, $this->getLogger());
         $processor = new Processor($config, $this->getLogger());
-        //$urlQueuePopulator->populateQueue($processor->getQueue());
         $processor->run();
 
         $this->crawlingEndedDateTime = new DateTime();

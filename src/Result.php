@@ -61,6 +61,11 @@ class Result
         $this->addStatusCode($statusCode);
     }
 
+    public function addStatusCode($statusCode): void
+    {
+        $this->bumpStatusCode($statusCode);
+    }
+
     public function getTotalData(): int
     {
         return $this->totalData;
@@ -91,11 +96,6 @@ class Result
     public function getRedirectedUrls(): array
     {
         return $this->redirectedUrls;
-    }
-
-    public function addStatusCode($statusCode): void
-    {
-        $this->bumpStatusCode($statusCode);
     }
 
     public function getStatusCodes(): array

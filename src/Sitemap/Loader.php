@@ -83,16 +83,6 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         $this->input->on('close', $this->getHandleCloseCallback());
     }
 
-    public function isReadable(): bool
-    {
-        return !$this->closed;
-    }
-
-    public function getNumberOfUrls(): int
-    {
-        return $this->numberOfUrls;
-    }
-
     public function close(): void
     {
         if ($this->closed) {
@@ -106,6 +96,22 @@ class Loader extends EventEmitter implements ReadableStreamInterface
 
         $this->emit('close');
         $this->removeAllListeners();
+    }
+
+    public function addUrl(string $url): void
+    {
+        ++$this->numberOfUrls;
+        $this->emit('data', [$url]);
+    }
+
+    public function getNumberOfUrls(): int
+    {
+        return $this->numberOfUrls;
+    }
+
+    public function isReadable(): bool
+    {
+        return !$this->closed;
     }
 
     public function pause(): void
@@ -123,12 +129,6 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         Util::pipe($this, $destination, $options);
 
         return $destination;
-    }
-
-    public function addUrl(string $url): void
-    {
-        ++$this->numberOfUrls;
-        $this->emit('data', [$url]);
     }
 
     private function getHandleDataCallback(): callable
@@ -161,27 +161,15 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         };
     }
 
-    private function getHandleErrorCallback(): callable
+    private function getSimpleXMLElement(string $data): ?SimpleXMLElement
     {
-        return function (\Exception $error): void {
-            $this->emit('error', [$error]);
-            $this->close();
-        };
-    }
+        try {
+            return @(new SimpleXMLElement($data));
+        } catch (\Exception $exception) {
+            $this->logger->error('Failed instantiating SimpleXMLElement:'.$exception->getMessage());
+        }
 
-    private function getHandleCloseCallback(): callable
-    {
-        return function (): void {
-            $this->close();
-        };
-    }
-
-    private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
-    {
-        $xmlRootElement = $xmlElement->getName();
-
-        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT //Used by standalone Sitemaps
-            || $xmlRootElement === self::XML_SITEMAP_ELEMENT; //Used when part of a Sitemap Index
+        return null;
     }
 
     private function isXmlSitemapIndex(SimpleXMLElement $xmlElement): bool
@@ -197,9 +185,19 @@ class Loader extends EventEmitter implements ReadableStreamInterface
             foreach ($sitemapLocationElements as $sitemapLocationElement) {
                 $sitemapUrl = (string) $sitemapLocationElement;
                 $this->processSitemapUrl($sitemapUrl);
-                $this->logger->debug('processed URLs in '.$sitemapUrl.', now totalling '.$this->getNumberOfUrls());
+                $this->logger->info('processed '.$sitemapUrl.', #URLs: '.$this->getNumberOfUrls());
             }
         }
+    }
+
+    private function getSitemapLocationElements(SimpleXMLElement $xmlElement): ?array
+    {
+        $xmlElement->registerXPathNamespace('sitemap', self::XML_SITEMAP_NAMESPACE);
+        if ($sitemapLocationElements = $xmlElement->xpath('//sitemap:loc')) {
+            return $sitemapLocationElements;
+        }
+
+        return null;
     }
 
     private function processSitemapUrl(string $sitemapUrl): void
@@ -209,17 +207,6 @@ class Loader extends EventEmitter implements ReadableStreamInterface
                 $this->processSitemapElement($sitemapElement);
             }
         }
-    }
-
-    private function getSimpleXMLElement(string $data): ?SimpleXMLElement
-    {
-        try {
-            return @(new SimpleXMLElement($data));
-        } catch (\Exception $exception) {
-            $this->logger->error('Failed instantiating SimpleXMLElement:'.$exception->getMessage());
-        }
-
-        return null;
     }
 
     private function loadExternalData(string $file): ?string
@@ -242,13 +229,26 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         }
     }
 
-    private function getSitemapLocationElements(SimpleXMLElement $xmlElement): ?array
+    private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
     {
-        $xmlElement->registerXPathNamespace('sitemap', self::XML_SITEMAP_NAMESPACE);
-        if ($sitemapLocationElements = $xmlElement->xpath('//sitemap:loc')) {
-            return $sitemapLocationElements;
-        }
+        $xmlRootElement = $xmlElement->getName();
 
-        return null;
+        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT //Used by standalone Sitemaps
+            || $xmlRootElement === self::XML_SITEMAP_ELEMENT; //Used when part of a Sitemap Index
+    }
+
+    private function getHandleErrorCallback(): callable
+    {
+        return function (\Exception $error): void {
+            $this->emit('error', [$error]);
+            $this->close();
+        };
+    }
+
+    private function getHandleCloseCallback(): callable
+    {
+        return function (): void {
+            $this->close();
+        };
     }
 }
