@@ -17,6 +17,7 @@ use React\EventLoop\LoopInterface;
 use React\EventLoop\Timer\Timer;
 use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
+use React\Stream\ReadableStreamInterface;
 use Teapot\StatusCode\Http;
 use function React\Promise\Timer\timeout;
 
@@ -159,7 +160,7 @@ class Processor
 
     private function renderStatistics(): void
     {
-        echo \sprintf(
+        $message = \sprintf(
             " %s %s Queued/running/done: %d/%s/%d. Statistics: %s \r",
             $this->getMemoryUsageLabel(),
             $this->getDurationLabel(),
@@ -168,6 +169,10 @@ class Processor
             $this->getResult()->countFinishedUrls(),
             \implode(' ', $this->getStatusCodeInformation())
         );
+
+        $this->logger->debug($message);
+
+        echo $message;
     }
 
     private function getMemoryUsageLabel(): string
@@ -187,12 +192,14 @@ class Processor
 
     private function getSitemapLoader(): SitemapLoader
     {
-        return $this->sitemapLoader ?: $this->sitemapLoader = new SitemapLoader(
-            new \React\Stream\ReadableResourceStream(
-                \fopen($this->config->targetFile, 'r'),
-                $this->getLoop()
-            ),
-            $this->logger
+        return $this->sitemapLoader ?: $this->sitemapLoader = new SitemapLoader($this->getStream(), $this->getLoop(), $this->logger);
+    }
+
+    private function getStream(): ReadableStreamInterface
+    {
+        return new \React\Stream\ReadableResourceStream(
+            \fopen($this->config->targetFile, 'r'),
+            $this->getLoop()
         );
     }
 
