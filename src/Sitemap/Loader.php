@@ -3,6 +3,8 @@
 namespace Octopus\Sitemap;
 
 use Evenement\EventEmitter;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use React\Stream\ReadableStreamInterface;
 use React\Stream\Util;
 use React\Stream\WritableStreamInterface;
@@ -42,16 +44,6 @@ class Loader extends EventEmitter implements ReadableStreamInterface
     private const XML_SITEMAP_ROOT_ELEMENT = 'urlset';
 
     /**
-     * @var ReadableStreamInterface
-     */
-    private $input;
-
-    /**
-     * @var int
-     */
-    private $numberOfUrls = 0;
-
-    /**
      * @var string
      */
     private $buffer = '';
@@ -61,9 +53,25 @@ class Loader extends EventEmitter implements ReadableStreamInterface
      */
     private $closed = false;
 
-    public function __construct(ReadableStreamInterface $input)
+    /**
+     * @var ReadableStreamInterface
+     */
+    private $input;
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     * @var int
+     */
+    private $numberOfUrls = 0;
+
+    public function __construct(ReadableStreamInterface $input, LoggerInterface $logger = null)
     {
         $this->input = $input;
+        $this->logger = $logger ?? new NullLogger();
 
         if (!$input->isReadable()) {
             $this->close();
@@ -189,7 +197,7 @@ class Loader extends EventEmitter implements ReadableStreamInterface
             foreach ($sitemapLocationElements as $sitemapLocationElement) {
                 $sitemapUrl = (string) $sitemapLocationElement;
                 $this->processSitemapUrl($sitemapUrl);
-                echo 'Processed URLs in '.$sitemapUrl.' '.$this->getNumberOfUrls().\PHP_EOL;
+                $this->logger->debug('processed URLs in '.$sitemapUrl.', now totalling '.$this->getNumberOfUrls());
             }
         }
     }
@@ -208,7 +216,7 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         try {
             return @(new SimpleXMLElement($data));
         } catch (\Exception $exception) {
-            echo 'Failed instantiating SimpleXMLElement:'.$exception->getMessage().\PHP_EOL;
+            $this->logger->error('Failed instantiating SimpleXMLElement:'.$exception->getMessage());
         }
 
         return null;

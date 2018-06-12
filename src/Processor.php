@@ -154,7 +154,8 @@ class Processor
             new \React\Stream\ReadableResourceStream(
                 \fopen($this->config->targetFile, 'r'),
                 $this->getLoop()
-            )
+            ),
+            $this->logger
         );
     }
 
