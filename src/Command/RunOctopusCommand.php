@@ -6,8 +6,8 @@ namespace Octopus\Command;
 
 use DateTime;
 use Octopus\Config;
-use Octopus\Processor as OctopusProcessor;
-use Octopus\TargetManager;
+use Octopus\Processor;
+use Octopus\Url\Queue\Populator as UrlQueuePopulator;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
@@ -123,16 +123,16 @@ using a specific concurrency:
         $this->getLogger()->debug('Starting Octopus Sitemap Crawler');
 
         $config = $this->determineConfiguration($input);
-        $targetManager = new TargetManager($config, $this->getLogger());
-        $processor = new OctopusProcessor($config, $targetManager);
-
-        $this->runProcessor($processor, $targetManager);
+        //$urlQueuePopulator = new UrlQueuePopulator($config, $this->getLogger());
+        $processor = new Processor($config, $this->getLogger());
+        //$urlQueuePopulator->populateQueue($processor->getQueue());
+        $processor->run();
 
         $this->crawlingEndedDateTime = new DateTime();
 
         $this->renderResultsTable($processor);
 
-        if ($config->outputBroken && \count($processor->brokenUrls) > 0) {
+        if ($config->outputBroken && \count($processor->getResult()->getBrokenUrls()) > 0) {
             $this->outputBrokenUrls($processor, $config->outputDestination);
         }
     }
@@ -185,39 +185,25 @@ using a specific concurrency:
         return $config;
     }
 
-    private function runProcessor(OctopusProcessor $processor, TargetManager $targetManager): void
+    private function renderResultsTable(Processor $processor): void
     {
-        try {
-            $numberOfQueuedFiles = $targetManager->populate();
-            $this->getLogger()->debug($numberOfQueuedFiles.' URLs queued for crawling');
-            $processor->spawnBundle();
-        } catch (\Exception $exception) {
-            $this->getLogger()->critical('Exception on initialization: '.$exception->getMessage());
-            exit;
-        }
+        $statusCodes = $processor->getResult()->getStatusCodes();
 
-        while ($targetManager->countQueue()) {
-            $processor->run();
-        }
-    }
-
-    private function renderResultsTable(OctopusProcessor $processor): void
-    {
-        if (\count($processor->statCodes) === 0) {
+        if (\count($statusCodes) === 0) {
             return;
         }
 
-        \ksort($processor->statCodes);
-        $rowColumnSpan = ['colspan' => \count($processor->statCodes)];
+        \ksort($statusCodes);
+        $rowColumnSpan = ['colspan' => \count($statusCodes)];
 
         $table = new Table($this->output);
         $table->setHeaders(
             [
                 [new TableCell('Crawling summary for: '.$processor->config->targetFile, $rowColumnSpan)],
-                \array_keys($processor->statCodes),
+                \array_keys($statusCodes),
             ]
         );
-        $table->addRow(\array_values($processor->statCodes));
+        $table->addRow(\array_values($statusCodes));
         $table->addRow(new TableSeparator());
 
         $table->addRows(
@@ -226,9 +212,9 @@ using a specific concurrency:
                 [new TableCell('Crawling ended: '.$this->getCrawlingEndedLabel(), $rowColumnSpan)],
                 [new TableCell('Crawling duration: '.$this->getCrawlingDurationLabel(), $rowColumnSpan)],
                 [new TableCell('Applied concurrency: '.$processor->config->concurrency, $rowColumnSpan)],
-                [new TableCell('Total amount of processed data: '.$processor->totalData, $rowColumnSpan)],
-                [new TableCell('Failed to load #URLs: '.\count($processor->brokenUrls), $rowColumnSpan)],
-                [new TableCell('Redirected #URLs: '.\count($processor->redirectedUrls), $rowColumnSpan)],
+                [new TableCell('Total amount of processed data: '.$processor->getResult()->getTotalData(), $rowColumnSpan)],
+                [new TableCell('Failed to load #URLs: '.\count($processor->getResult()->getBrokenUrls()), $rowColumnSpan)],
+                [new TableCell('Redirected #URLs: '.\count($processor->getResult()->getRedirectedUrls()), $rowColumnSpan)],
             ]
         );
         $table->render();
@@ -251,10 +237,10 @@ using a specific concurrency:
         return \sprintf('%d seconds', $numberOfSeconds);
     }
 
-    private function outputBrokenUrls(OctopusProcessor $processor, string $outputDestination): void
+    private function outputBrokenUrls(Processor $processor, string $outputDestination): void
     {
         $content = [];
-        foreach ($processor->brokenUrls as $url => $reason) {
+        foreach ($processor->getResult()->getBrokenUrls() as $url => $reason) {
             $label = \sprintf('Failed %s: %s', $reason, $url);
             $this->getLogger()->debug($label);
             $content[] = $label;

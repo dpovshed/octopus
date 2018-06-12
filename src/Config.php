@@ -146,20 +146,6 @@ class Config
     public $requestType = self::REQUEST_TYPE_HEAD;
 
     /**
-     * Maximum delay after spawning requests in microseconds.
-     *
-     * @var int
-     */
-    public $spawnDelayMax = 0;
-
-    /**
-     * Minimum delay after spawning requests in microseconds.
-     *
-     * @var int
-     */
-    public $spawnDelayMin = 0;
-
-    /**
      * The format of the loaded sitemap.
      *
      * Either 'xml' or 'txt'
@@ -183,18 +169,11 @@ class Config
     public $timeout = self::TIMEOUT_DEFAULT;
 
     /**
-     * How often to update current statistics.
+     * How often to update current statistics in the UserInterface.
      *
      * @var float
      */
     public $timerUI = self::TIMER_UI_DEFAULT;
-
-    /**
-     * How often spawn new request.
-     *
-     * @var float
-     */
-    public $timerQueue = 0.007;
 
     private static $allowedOutputModes = [
         self::OUTPUT_MODE_COUNT,
@@ -213,7 +192,7 @@ class Config
 
     public function __construct()
     {
-        $this->outputDestination .= DIRECTORY_SEPARATOR.\time();
+        $this->outputDestination .= \DIRECTORY_SEPARATOR.\time();
     }
 
     /**
@@ -231,9 +210,6 @@ class Config
         }
         if (!\in_array($this->targetType, self::$allowedTargetTypes, true)) {
             throw new InvalidArgumentException('Invalid configuration value detected: use an allowed TargetType: '.\print_r(self::$allowedTargetTypes, true));
-        }
-        if ($this->spawnDelayMax < $this->spawnDelayMin) {
-            throw new InvalidArgumentException('Invalid configuration value detected: check spawn delay numbers');
         }
         if ($this->bonusRespawn > 99) {
             throw new InvalidArgumentException('Invalid configuration value detected: bonus respawn should be up to 99');

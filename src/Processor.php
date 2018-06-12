@@ -6,12 +6,18 @@ namespace Octopus;
 
 use Clue\React\Buzz\Browser;
 use Clue\React\Buzz\Message\ResponseException;
+use Clue\React\Flux\Transformer;
 use Exception;
+use Octopus\Sitemap\Loader as SitemapLoader;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
 use React\EventLoop\Timer\Timer;
+use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
+use Teapot\StatusCode\Http;
 use function React\Promise\Timer\timeout;
 
 /**
@@ -20,40 +26,21 @@ use function React\Promise\Timer\timeout;
 class Processor
 {
     /**
-     * @var array
+     * Used for indicating a general error when no more details can be provided.
+     *
+     * @var string
      */
-    public $statCodes = [];
+    private const ERROR_TYPE_GENERAL = 'failure';
 
     /**
-     * Total amount of processed data.
-     *
-     * @var int
+     * @var string
      */
-    public $totalData = 0;
-
-    /**
-     * URLs that could not be loaded.
-     *
-     * @var array
-     */
-    public $brokenUrls = [];
-
-    /**
-     * URLs that were redirected to another location.
-     *
-     * @var array
-     */
-    public $redirectedUrls = [];
+    private const ERROR_TYPE_TIMEOUT = 'timeout';
 
     /**
      * @var Config
      */
     public $config;
-
-    /**
-     * @var array
-     */
-    private $httpRedirectionResponseCodes = [301, 302, 303, 307, 308];
 
     /**
      * @var bool
@@ -75,9 +62,15 @@ class Processor
     private $started;
 
     /**
-     * @var TargetManager
+     * @var array
      */
-    private $targetManager;
+    private $httpRedirectionResponseCodes = [
+        Http::MOVED_PERMANENTLY,
+        Http::FOUND,
+        Http::SEE_OTHER,
+        Http::TEMPORARY_REDIRECT,
+        Http::PERMANENT_REDIRECT,
+    ];
 
     /**
      * @var Browser
@@ -85,71 +78,221 @@ class Processor
     private $browser;
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * @var LoopInterface
      */
     private $loop;
 
-    public function __construct(Config $config, TargetManager $targets)
+    /**
+     * @var SitemapLoader
+     */
+    private $sitemapLoader;
+
+    /**
+     * @var Transformer
+     */
+    private $transformer;
+
+    /**
+     * @var Result
+     */
+    private $result;
+
+    /**
+     * @var bool
+     */
+    private $followRedirects;
+
+    public function __construct(Config $config, LoggerInterface $logger = null)
     {
-        $this->targetManager = $targets;
         $this->config = $config;
+        $this->logger = $logger ?? new NullLogger();
         $this->saveEnabled = $config->outputMode === 'save';
         if ($this->saveEnabled || $config->outputBroken) {
-            $this->savePath = $config->outputDestination.DIRECTORY_SEPARATOR;
+            $this->savePath = $config->outputDestination.\DIRECTORY_SEPARATOR;
             if (!@\mkdir($this->savePath) && !\is_dir($this->savePath)) {
                 throw new Exception('Cannot create output directory: '.$this->savePath);
             }
         }
-    }
 
-    public function timerStatistics(Timer $timer): void
-    {
-        $countQueue = $this->targetManager->countQueue();
-        $countRunning = $this->targetManager->countRunning();
-        $countFinished = $this->targetManager->countFinished();
-
-        $codeInfo = [];
-        foreach ($this->statCodes as $code => $count) {
-            $codeInfo[] = \sprintf('%s: %d', $code, $count);
-        }
-
-        echo \sprintf(
-            " %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Statistics: %s           \r",
-            \memory_get_usage(true) / 1048576,
-            \microtime(true) - $this->started,
-            $countQueue,
-            $countRunning,
-            $countFinished,
-            \implode(' ', $codeInfo)
-        );
-
-        if (($countQueue + $countRunning) === 0) {
-            $timer->cancel();
+        if (\is_array($config->additionalResponseHeadersToCount)) {
+            $this->getResult()->setAdditionalResponseHeadersToCount($config->additionalResponseHeadersToCount);
         }
     }
 
     public function run(): void
     {
-        $this->getLoop()->addPeriodicTimer($this->config->timerUI, [$this, 'timerStatistics']);
-        $this->getLoop()->addPeriodicTimer($this->config->timerQueue, function (Timer $timer) {
-            if ($this->targetManager->hasFreeSlots()) {
-                $this->spawnBundle();
-            } elseif ($this->targetManager->noMoreUrlsToProcess()) {
-                $timer->cancel();
-            }
-        });
-
         $this->started = \microtime(true);
+
+        $this->getLoop()->addPeriodicTimer($this->config->timerUI, $this->getTimerStatisticsCallback());
+
+        // load a collection of URLs to process
+        $this->getSitemapLoader()->pipe($this->getTransformer());
+
         $this->getLoop()->run();
     }
 
-    public function spawnBundle(): void
+    public function getResult(): Result
     {
-        for ($i = $this->targetManager->getFreeSlots(); $i > 0; --$i) {
-            //[$id, $url] = $this->targets->launchAny(); //TODO make configurable to either launch the next, or a random URL
-            [$id, $url] = $this->targetManager->launchNext();
-            $this->spawn($id, $url);
+        return $this->result ?: $this->result = new Result();
+    }
+
+    public function getTimerStatisticsCallback(): callable
+    {
+        return function (Timer $timer) {
+            $this->renderStatistics();
+        };
+    }
+
+    private function getSitemapLoader(): SitemapLoader
+    {
+        return $this->sitemapLoader ?: $this->sitemapLoader = new SitemapLoader(
+            new \React\Stream\ReadableResourceStream(
+                \fopen($this->config->targetFile, 'r'),
+                $this->getLoop()
+            )
+        );
+    }
+
+    private function getTransformer(): Transformer
+    {
+        return $this->transformer ?: $this->transformer = new Transformer($this->config->concurrency, $this->getLoadUrlUsingBrowserCallback());
+    }
+
+    private function renderStatistics(): void
+    {
+        echo \sprintf(
+            " %s %s Queued/running/done: %d/%s/%d. Statistics: %s \r",
+            $this->getMemoryUsageLabel(),
+            $this->getDurationLabel(),
+            $this->getSitemapLoader()->getNumberOfUrls(),
+            $this->config->concurrency,
+            $this->getResult()->countFinishedUrls(),
+            \implode(' ', $this->getStatusCodeInformation())
+        );
+    }
+
+    private function getMemoryUsageLabel(): string
+    {
+        return \sprintf('%5.1f MB', \memory_get_usage(true) / 1048576);
+    }
+
+    private function getDurationLabel(): string
+    {
+        return \sprintf('%6.2f sec.', \microtime(true) - $this->started);
+    }
+
+    private function getStatusCodeInformation(): array
+    {
+        $codeInfo = [];
+        foreach ($this->getResult()->getStatusCodes() as $code => $count) {
+            $codeInfo[] = \sprintf('%s: %d', $code, $count);
         }
+
+        return $codeInfo;
+    }
+
+    private function getLoadUrlUsingBrowserCallback(): callable
+    {
+        return function (string $url) {
+            $promise = $this->loadUrlWithBrowser($url)->then(
+                $this->getOnFulfilledCallback($url),
+                $this->getOnRejectedCallback($url)
+            );
+
+            return timeout($promise, $this->config->timeout, $this->getLoop());
+        };
+    }
+
+    private function getOnFulfilledCallback(string $url): callable
+    {
+        return function (ResponseInterface $response) use ($url): void {
+            $this->getResult()->countAdditionalHeaders($response->getHeaders());
+
+            /*
+            if ($this->saveEnabled) {
+                $path = $this->savePath.$this->makeFilename($url);
+                if (\file_put_contents($path, $response->getBody(), FILE_APPEND) === false) {
+                    throw new Exception("Cannot write file: $path");
+                }
+            }
+             */
+
+            $this->getResult()->addProcessedData($response->getBody()->getSize());
+
+            $httpResponseCode = $response->getStatusCode();
+            $this->getResult()->addStatusCode($httpResponseCode);
+            $this->getResult()->done($url);
+
+            if ($this->followRedirects && $this->isRedirectCode($httpResponseCode)) {
+                $newLocation = $this->getLocationFromHeaders($response->getHeaders());
+                $this->getResult()->addRedirectedUrl($url, $newLocation);
+                $this->getSitemapLoader()->addUrl($newLocation);
+
+                return;
+            }
+
+            // Any 2xx code is 'success' for us, if not => failure
+            if ((int) ($httpResponseCode / 100) !== 2) {
+                $this->getResult()->addBrokenUrl($url, $httpResponseCode);
+
+                return;
+            }
+
+            /*
+            //In case a URL should be loaded again once in a while, add it to the queue again
+            if (\random_int(0, 100) < $this->config->bonusRespawn) {
+                $this->add($url);
+            }
+             */
+        };
+    }
+
+    private function getLocationFromHeaders(array $headers): string
+    {
+        return $headers['Location'][0];
+    }
+
+    private function isRedirectCode(int $httpResponseCode): bool
+    {
+        return \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true);
+    }
+
+    private function getOnRejectedCallback(string $url): callable
+    {
+        return function ($errorOrException) use ($url) {
+            $errorType = $this->getErrorType($errorOrException);
+            $this->getResult()->done($url);
+            $this->getResult()->addBrokenUrl($url, $errorType);
+
+            $this->logger->error('loading {url} resulted in an error: {errorType}, {errorMessage}', [
+                'url' => $url,
+                'errorType' => $errorType,
+                'errorMessage' => $this->getErrorMessage($errorOrException),
+            ]);
+        };
+    }
+
+    private function getErrorType($errorOrException): string
+    {
+        if ($errorOrException instanceof TimeoutException) {
+            return self::ERROR_TYPE_TIMEOUT;
+        }
+
+        if ($errorOrException instanceof ResponseException && $errorOrException->getCode() >= 300) {
+            return (string) $errorOrException->getCode(); // Regular HTTP error code.
+        }
+
+        return self::ERROR_TYPE_GENERAL;
+    }
+
+    private function getErrorMessage($errorOrException): string
+    {
+        return $errorOrException instanceof Exception ? $errorOrException->getMessage() : \print_r($errorOrException, true);
     }
 
     private function getBrowser(): Browser
@@ -164,113 +307,10 @@ class Processor
         return $this->loop ?: $this->loop = EventLoopFactory::create();
     }
 
-    private function spawn(int $id, string $url): void
-    {
-        $this->spawnWithBrowser($id, $url);
-
-        if ($this->config->spawnDelayMax) {
-            \usleep(\random_int($this->config->spawnDelayMin, $this->config->spawnDelayMax));
-        }
-    }
-
-    private function spawnWithBrowser(int $id, string $url): void
+    private function loadUrlWithBrowser(string $url): PromiseInterface
     {
         $requestType = \mb_strtolower($this->config->requestType);
 
-        $promise = $this->getBrowser()->$requestType($url, $this->config->requestHeaders);
-
-        timeout($promise, $this->config->timeout, $this->getLoop())
-            ->then(
-                function (ResponseInterface $response) use ($id, $url) {
-                    $this->countAdditionalHeaders($response->getHeaders());
-
-                    if ($this->saveEnabled) {
-                        $path = $this->savePath.$this->makeFilename($url, $id);
-                        if (\file_put_contents($path, $response->getBody(), FILE_APPEND) === false) {
-                            throw new Exception("Cannot write file: $path");
-                        }
-                    }
-
-                    $this->totalData += $response->getBody()->getSize();
-
-                    $httpResponseCode = $response->getStatusCode();
-                    $this->bumpStatusCode($httpResponseCode);
-                    $this->targetManager->done($id);
-
-                    if ($this->config->followRedirects && \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
-                        $headers = $response->getHeaders();
-                        $newLocation = $headers['Location'][0];
-                        $this->redirectedUrls[$url] = $newLocation;
-                        $this->targetManager->add($newLocation);
-
-                        return;
-                    }
-
-                    // Any 2xx code is 'success' for us, if not => failure
-                    if ((int) ($httpResponseCode / 100) !== 2) {
-                        $this->brokenUrls[$url] = $httpResponseCode;
-
-                        return;
-                    }
-
-                    if (\random_int(0, 100) < $this->config->bonusRespawn) {
-                        $this->targetManager->add($url);
-                    }
-                }
-            )
-            ->otherwise(
-                function (TimeoutException $exception) use ($id, $url) {
-                    $failType = 'timeouted';
-                    $this->bumpStatusCode($failType);
-                    $this->targetManager->done($id);
-                    $this->brokenUrls[$url] = $failType;
-
-                    echo $url.' request error: '.$exception->getMessage().PHP_EOL;
-                }
-            )
-            ->otherwise(
-                function (ResponseException $exception) use ($id, $url) {
-                    $failType = $exception->getCode();
-                    $this->bumpStatusCode($failType);
-                    $this->targetManager->done($id);
-                    $this->brokenUrls[$url] = $failType;
-
-                    echo $url.' request error: '.$exception->getMessage().PHP_EOL;
-                }
-            )
-            ->otherwise(
-                function ($error) use ($id, $url) {
-                    $failType = 'failed'; // Generic error type, cannot qualify with more details.
-                    $this->bumpStatusCode($failType);
-                    $this->targetManager->done($id);
-                    $this->brokenUrls[$url] = $failType;
-
-                    echo $url.' request error: '.\print_r($error, true).PHP_EOL;
-                }
-            );
-    }
-
-    private function bumpStatusCode($statusCode): void
-    {
-        $this->statCodes[$statusCode] = $this->statCodes[$statusCode] ?? 0;
-
-        ++$this->statCodes[$statusCode];
-    }
-
-    private function countAdditionalHeaders(array $headers): void
-    {
-        if (\is_array($this->config->additionalResponseHeadersToCount) && \count($this->config->additionalResponseHeadersToCount) > 0) {
-            foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
-                if (isset($headers[$additionalHeader])) {
-                    $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
-                    $this->bumpStatusCode($headerLabel);
-                }
-            }
-        }
-    }
-
-    private function makeFilename(string $octopusUrl, int $octopusId): string
-    {
-        return \preg_replace('/[^a-zA-Z0-9]/', '_', $octopusUrl.'_____'.$octopusId);
+        return $this->getBrowser()->$requestType($url, $this->config->requestHeaders);
     }
 }
