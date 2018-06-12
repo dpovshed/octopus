@@ -118,11 +118,11 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         $this->input->resume();
     }
 
-    public function pipe(WritableStreamInterface $dest, array $options = [])
+    public function pipe(WritableStreamInterface $destination, array $options = []): WritableStreamInterface
     {
-        Util::pipe($this, $dest, $options);
+        Util::pipe($this, $destination, $options);
 
-        return $dest;
+        return $destination;
     }
 
     public function addUrl(string $url): void
