@@ -175,16 +175,25 @@ class Config
      */
     public $timerUI = self::TIMER_UI_DEFAULT;
 
+    /**
+     * @var array
+     */
     private static $allowedOutputModes = [
         self::OUTPUT_MODE_COUNT,
         self::OUTPUT_MODE_SAVE,
     ];
 
+    /**
+     * @var array
+     */
     private static $allowedRequestTypes = [
         self::REQUEST_TYPE_GET,
         self::REQUEST_TYPE_HEAD,
     ];
 
+    /**
+     * @var array
+     */
     private static $allowedTargetTypes = [
         self::TARGET_TYPE_XML,
         self::TARGET_TYPE_TXT,

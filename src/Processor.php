@@ -122,18 +122,11 @@ class Processor
         if (\is_array($config->additionalResponseHeadersToCount)) {
             $this->getResult()->setAdditionalResponseHeadersToCount($config->additionalResponseHeadersToCount);
         }
-    }
-
-    public function run(): void
-    {
-        $this->started = \microtime(true);
 
         $this->getLoop()->addPeriodicTimer($this->config->timerUI, $this->getTimerStatisticsCallback());
 
-        // load a collection of URLs to process
+        // load a collection of URLs and pass it through the Transformer
         $this->getSitemapLoader()->pipe($this->getTransformer());
-
-        $this->getLoop()->run();
     }
 
     public function getResult(): Result
@@ -141,27 +134,27 @@ class Processor
         return $this->result ?: $this->result = new Result();
     }
 
+    public function run(): void
+    {
+        $this->started = \microtime(true);
+
+        $this->getLoop()->run();
+    }
+
     public function getTimerStatisticsCallback(): callable
     {
         return function (Timer $timer) {
             $this->renderStatistics();
+            if ($this->isCompleted()) {
+                $this->logger->info('No more URLs to process: stop!');
+                $timer->cancel();
+            }
         };
     }
 
-    private function getSitemapLoader(): SitemapLoader
+    private function getLoop(): LoopInterface
     {
-        return $this->sitemapLoader ?: $this->sitemapLoader = new SitemapLoader(
-            new \React\Stream\ReadableResourceStream(
-                \fopen($this->config->targetFile, 'r'),
-                $this->getLoop()
-            ),
-            $this->logger
-        );
-    }
-
-    private function getTransformer(): Transformer
-    {
-        return $this->transformer ?: $this->transformer = new Transformer($this->config->concurrency, $this->getLoadUrlUsingBrowserCallback());
+        return $this->loop ?: $this->loop = EventLoopFactory::create();
     }
 
     private function renderStatistics(): void
@@ -170,7 +163,7 @@ class Processor
             " %s %s Queued/running/done: %d/%s/%d. Statistics: %s \r",
             $this->getMemoryUsageLabel(),
             $this->getDurationLabel(),
-            $this->getSitemapLoader()->getNumberOfUrls(),
+            $this->getNumberOfRemainingUrlsToProcess(),
             $this->config->concurrency,
             $this->getResult()->countFinishedUrls(),
             \implode(' ', $this->getStatusCodeInformation())
@@ -187,6 +180,22 @@ class Processor
         return \sprintf('%6.2f sec.', \microtime(true) - $this->started);
     }
 
+    private function getNumberOfRemainingUrlsToProcess(): int
+    {
+        return $this->getSitemapLoader()->getNumberOfUrls() - $this->getResult()->countFinishedUrls();
+    }
+
+    private function getSitemapLoader(): SitemapLoader
+    {
+        return $this->sitemapLoader ?: $this->sitemapLoader = new SitemapLoader(
+            new \React\Stream\ReadableResourceStream(
+                \fopen($this->config->targetFile, 'r'),
+                $this->getLoop()
+            ),
+            $this->logger
+        );
+    }
+
     private function getStatusCodeInformation(): array
     {
         $codeInfo = [];
@@ -197,6 +206,25 @@ class Processor
         return $codeInfo;
     }
 
+    private function isCompleted(): bool
+    {
+        return $this->getResult()->countFinishedUrls() > 0 && $this->getNumberOfRemainingUrlsToProcess() === 0;
+    }
+
+    private function getTransformer(): Transformer
+    {
+        return $this->transformer ?: $this->transformer = (new Transformer($this->config->concurrency, $this->getLoadUrlUsingBrowserCallback()))
+            ->on('data', function ($data) {
+                $this->logger->debug('Transformer received data event');
+            })
+            ->on('end', function () {
+                $this->logger->debug('Transformer received end event');
+            })
+            ->on('error', function () {
+                $this->logger->debug('Transformer received error event');
+            });
+    }
+
     private function getLoadUrlUsingBrowserCallback(): callable
     {
         return function (string $url) {
@@ -205,8 +233,25 @@ class Processor
                 $this->getOnRejectedCallback($url)
             );
 
+            return $promise;
+
+            //The timeout seems to start counting directly / in the same loop? Causing it to expire early / when the script has run for the number of seconds. This prevents the script from running when loading the URLs takes more time than the timeout
             return timeout($promise, $this->config->timeout, $this->getLoop());
         };
+    }
+
+    private function loadUrlWithBrowser(string $url): PromiseInterface
+    {
+        $requestType = \mb_strtolower($this->config->requestType);
+
+        return $this->getBrowser()->$requestType($url, $this->config->requestHeaders);
+    }
+
+    private function getBrowser(): Browser
+    {
+        return $this->browser ?: $this->browser = (new Browser($this->getLoop()))->withOptions([
+            'followRedirects' => false, // We are using own mechanism of following redirects to correctly count these.
+        ]);
     }
 
     private function getOnFulfilledCallback(string $url): callable
@@ -253,19 +298,19 @@ class Processor
         };
     }
 
-    private function getLocationFromHeaders(array $headers): string
-    {
-        return $headers['Location'][0];
-    }
-
     private function isRedirectCode(int $httpResponseCode): bool
     {
         return \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true);
     }
 
+    private function getLocationFromHeaders(array $headers): string
+    {
+        return $headers['Location'][0];
+    }
+
     private function getOnRejectedCallback(string $url): callable
     {
-        return function ($errorOrException) use ($url) {
+        return function ($errorOrException) use ($url): void {
             $errorType = $this->getErrorType($errorOrException);
             $this->getResult()->done($url);
             $this->getResult()->addBrokenUrl($url, $errorType);
@@ -294,24 +339,5 @@ class Processor
     private function getErrorMessage($errorOrException): string
     {
         return $errorOrException instanceof Exception ? $errorOrException->getMessage() : \print_r($errorOrException, true);
-    }
-
-    private function getBrowser(): Browser
-    {
-        return $this->browser ?: $this->browser = (new Browser($this->getLoop()))->withOptions([
-            'followRedirects' => false, // We are using own mechanism of following redirects to correctly count these.
-        ]);
-    }
-
-    private function getLoop(): LoopInterface
-    {
-        return $this->loop ?: $this->loop = EventLoopFactory::create();
-    }
-
-    private function loadUrlWithBrowser(string $url): PromiseInterface
-    {
-        $requestType = \mb_strtolower($this->config->requestType);
-
-        return $this->getBrowser()->$requestType($url, $this->config->requestHeaders);
     }
 }
