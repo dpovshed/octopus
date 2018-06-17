@@ -147,7 +147,7 @@ class Processor
         return function (Timer $timer) {
             $this->renderStatistics();
             if ($this->isCompleted()) {
-                $this->logger->info('No more URLs to process: stop!');
+                $this->logger->info('no more URLs to process: stop!');
                 $timer->cancel();
             }
         };
@@ -192,7 +192,7 @@ class Processor
 
     private function getSitemapLoader(): SitemapLoader
     {
-        return $this->sitemapLoader ?: $this->sitemapLoader = new SitemapLoader($this->getStream(), $this->getLoop(), $this->logger);
+        return $this->sitemapLoader ?: $this->sitemapLoader = new SitemapLoader($this->getStream(), $this->logger);
     }
 
     private function getStream(): ReadableStreamInterface
@@ -240,10 +240,14 @@ class Processor
                 $this->getOnRejectedCallback($url)
             );
 
-            return $promise;
+            // return $promise;
 
-            //The timeout seems to start counting directly / in the same loop? Causing it to expire early / when the script has run for the number of seconds. This prevents the script from running when loading the URLs takes more time than the timeout
-            return timeout($promise, $this->config->timeout, $this->getLoop());
+            //The timeout seems to start counting directly / in the same loop? Causing the first item to early.
+            return timeout($promise, $this->config->timeout, $this->getLoop())->otherwise(
+                function (TimeoutException $timeoutException) {
+                    $this->logger->error($timeoutException->getMessage());
+                }
+            );
         };
     }
 
