@@ -244,8 +244,8 @@ class Processor
 
             //The timeout seems to start counting directly / in the same loop? Causing the first item to early.
             return timeout($promise, $this->config->timeout, $this->getLoop())->otherwise(
-                function (TimeoutException $timeoutException) {
-                    $this->logger->error($timeoutException->getMessage());
+                function (TimeoutException $timeoutException) use ($url) {
+                    $this->logger->error(\sprintf('failed loading %s: %s', $url, $timeoutException->getMessage()));
                 }
             );
         };
