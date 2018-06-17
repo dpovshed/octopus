@@ -2,12 +2,9 @@
 
 namespace Octopus\Sitemap;
 
-use Clue\React\Buzz\Browser;
 use Evenement\EventEmitter;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use React\EventLoop\LoopInterface;
 use React\Stream\ReadableStreamInterface;
 use React\Stream\Util;
 use React\Stream\WritableStreamInterface;
@@ -67,19 +64,13 @@ class Loader extends EventEmitter implements ReadableStreamInterface
     private $logger;
 
     /**
-     * @var LoopInterface
-     */
-    private $loop;
-
-    /**
      * @var int
      */
     private $numberOfUrls = 0;
 
-    public function __construct(ReadableStreamInterface $input, LoopInterface $loop, LoggerInterface $logger = null)
+    public function __construct(ReadableStreamInterface $input, LoggerInterface $logger = null)
     {
         $this->input = $input;
-        $this->loop = $loop;
         $this->logger = $logger ?? new NullLogger();
 
         if (!$input->isReadable()) {
@@ -194,8 +185,7 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         if ($sitemapLocationElements = $this->getSitemapLocationElements($sitemapIndexElement)) {
             foreach ($sitemapLocationElements as $sitemapLocationElement) {
                 $sitemapUrl = (string) $sitemapLocationElement;
-                //$this->processSitemapUrl($sitemapUrl);
-                $this->processSitemapUrlAsynchronously($sitemapUrl);
+                $this->processSitemapUrl($sitemapUrl);
                 $this->logger->info('processed '.$sitemapUrl.', #URLs: '.$this->getNumberOfUrls());
             }
         }
@@ -218,24 +208,6 @@ class Loader extends EventEmitter implements ReadableStreamInterface
                 $this->processSitemapElement($sitemapElement);
             }
         }
-    }
-
-    private function processSitemapUrlAsynchronously(string $sitemapUrl): void
-    {
-        $loop = \React\EventLoop\Factory::create();
-        $client = new Browser($loop);
-
-        $client->get($sitemapUrl)->then(
-            function (ResponseInterface $response) use ($sitemapUrl) {
-                $data = (string) $response->getBody();
-                $this->logger->info('asynchronously loaded encountered Sitemap '.$sitemapUrl);
-                if ($sitemapElement = $this->getSimpleXMLElement($data)) {
-                    $this->processSitemapElement($sitemapElement);
-                }
-            }
-        );
-
-        $loop->run();
     }
 
     private function loadExternalData(string $file): ?string
