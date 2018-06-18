@@ -235,19 +235,12 @@ class Processor
     private function getLoadUrlUsingBrowserCallback(): callable
     {
         return function (string $url) {
-            $promise = $this->loadUrlWithBrowser($url)->then(
-                $this->getOnFulfilledCallback($url),
-                $this->getOnRejectedCallback($url)
-            );
-
-            // return $promise;
+            $promise = $this->loadUrlWithBrowser($url);
 
             //The timeout seems to start counting directly / in the same loop? Causing the first item to early.
-            return timeout($promise, $this->config->timeout, $this->getLoop())->otherwise(
-                function (TimeoutException $timeoutException) use ($url) {
-                    $this->logger->error(\sprintf('failed loading %s: %s', $url, $timeoutException->getMessage()));
-                }
-            );
+            return timeout($promise, $this->config->timeout, $this->getLoop())
+                ->then($this->getOnFulfilledCallback($url))
+                ->otherwise($this->getOnRejectedCallback($url));
         };
     }
 
