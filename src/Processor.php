@@ -15,11 +15,10 @@ use Psr\Log\NullLogger;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
 use React\EventLoop\Timer\Timer;
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 use React\Promise\Timer\TimeoutException;
 use React\Stream\ReadableStreamInterface;
 use Teapot\StatusCode\Http;
-use function React\Promise\Timer\timeout;
 
 /**
  * Processor core.
@@ -135,13 +134,6 @@ class Processor
         return $this->result ?: $this->result = new Result();
     }
 
-    public function run(): void
-    {
-        $this->started = \microtime(true);
-
-        $this->getLoop()->run();
-    }
-
     public function getTimerStatisticsCallback(): callable
     {
         return function (Timer $timer) {
@@ -151,6 +143,13 @@ class Processor
                 $timer->cancel();
             }
         };
+    }
+
+    public function run(): void
+    {
+        $this->started = \microtime(true);
+
+        $this->getLoop()->run();
     }
 
     private function getLoop(): LoopInterface
@@ -198,7 +197,7 @@ class Processor
     private function getStream(): ReadableStreamInterface
     {
         return new \React\Stream\ReadableResourceStream(
-            \fopen($this->config->targetFile, 'r'),
+            \fopen($this->config->targetFile, 'rb'),
             $this->getLoop()
         );
     }
@@ -234,17 +233,14 @@ class Processor
 
     private function getLoadUrlUsingBrowserCallback(): callable
     {
-        return function (string $url) {
-            $promise = $this->loadUrlWithBrowser($url);
-
-            //The timeout seems to start counting directly / in the same loop? Causing the first item to early.
-            return timeout($promise, $this->config->timeout, $this->getLoop())
+        return function (string $url): Promise {
+            return $this->loadUrlWithBrowser($url)
                 ->then($this->getOnFulfilledCallback($url))
                 ->otherwise($this->getOnRejectedCallback($url));
         };
     }
 
-    private function loadUrlWithBrowser(string $url): PromiseInterface
+    private function loadUrlWithBrowser(string $url): Promise
     {
         $requestType = \mb_strtolower($this->config->requestType);
 
@@ -254,6 +250,7 @@ class Processor
     private function getBrowser(): Browser
     {
         return $this->browser ?: $this->browser = (new Browser($this->getLoop()))->withOptions([
+            'timeout' => $this->config->timeout,
             'followRedirects' => false, // We are using own mechanism of following redirects to correctly count these.
         ]);
     }
