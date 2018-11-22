@@ -63,6 +63,11 @@ class RunOctopusCommand extends Command
     /**
      * @var string
      */
+    private const COMMAND_OPTION_TARGET_TYPE = 'targetFormat';
+
+    /**
+     * @var string
+     */
     private const DATE_FORMAT = DateTime::W3C;
 
     /**
@@ -101,6 +106,7 @@ class RunOctopusCommand extends Command
             ->addOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS, null, InputOption::VALUE_OPTIONAL, 'Should the crawler follow HTTP redirects? Defaults to '.(Config::FOLLOW_HTTP_REDIRECTS_DEFAULT ? 'true' : 'false'))
             ->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to '.Config::REQUEST_HEADER_USER_AGENT_DEFAULT)
             ->addOption(self::COMMAND_OPTION_REQUEST_TYPE, null, InputOption::VALUE_OPTIONAL, 'The type of HTTP request, HEAD put lesser load to server while GET loads whole page. Defaults to '.Config::REQUEST_TYPE_DEFAULT)
+            ->addOption(self::COMMAND_OPTION_TARGET_TYPE, null, InputOption::VALUE_OPTIONAL, 'List of URLs to parse could be provided as sitemap or plain text. Defaults to '.Config::TARGET_TYPE_DEFAULT)
             ->addOption(self::COMMAND_OPTION_TIMEOUT, null, InputOption::VALUE_OPTIONAL, 'Timeout for a request, in seconds. Defaults to '.Config::TIMEOUT_DEFAULT)
             ->addOption(self::COMMAND_OPTION_TIMER_UI, null, InputOption::VALUE_OPTIONAL, 'How often to update current statistics in the UserInterface. Defaults to '.Config::TIMER_UI_DEFAULT)
             ->setHelp(
@@ -167,6 +173,10 @@ using a specific concurrency:
         if (\is_string($input->getOption(self::COMMAND_OPTION_REQUEST_TYPE))) {
             $config->requestType = $input->getOption(self::COMMAND_OPTION_REQUEST_TYPE);
             $this->getLogger()->notice('Using request type: '.$config->requestType);
+        }
+        if (\is_string($input->getOption(self::COMMAND_OPTION_TARGET_TYPE))) {
+            $config->targetType = $input->getOption(self::COMMAND_OPTION_TARGET_TYPE);
+            $this->getLogger()->notice('Source file format: '.$config->targetType);
         }
         if (\is_numeric($input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
             $config->timeout = (float) $input->getOption(self::COMMAND_OPTION_TIMEOUT);
