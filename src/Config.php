@@ -62,6 +62,11 @@ class Config
     public const TARGET_TYPE_TXT = 'txt';
 
     /**
+     * @var string
+     */
+    public const TARGET_TYPE_DEFAULT = self::TARGET_TYPE_XML;
+
+    /**
      * @var int
      */
     public const CONCURRENCY_DEFAULT = 5;
