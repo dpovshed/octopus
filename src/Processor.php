@@ -124,7 +124,7 @@ class Processor
         );
 
         if (($countQueue + $countRunning) === 0) {
-            $timer->cancel();
+            $this->getLoop()->cancelTimer($timer);
         }
     }
 
@@ -135,7 +135,7 @@ class Processor
             if ($this->targetManager->hasFreeSlots()) {
                 $this->spawnBundle();
             } elseif ($this->targetManager->noMoreUrlsToProcess()) {
-                $timer->cancel();
+                $this->getLoop()->cancelTimer($timer);
             }
         });
 
