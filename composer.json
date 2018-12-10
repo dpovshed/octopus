@@ -7,7 +7,7 @@
   "require": {
     "php": "^7.1",
     "symfony/console": "^3.3||^4.0",
-    "react/event-loop": "^0.4",
+    "react/event-loop": "^0.4||^1.0",
     "react/http-client": "^0.5",
     "clue/buzz-react": "^2.2"
   },
