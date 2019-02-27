@@ -86,10 +86,12 @@ class Result
 
     public function countAdditionalHeaders(array $headers): void
     {
-        foreach ($this->additionalResponseHeadersToCount as $additionalHeader) {
-            if (isset($headers[$additionalHeader])) {
-                $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
-                $this->bumpStatusCode($headerLabel);
+        if (\is_array($this->additionalResponseHeadersToCount) && \count($this->additionalResponseHeadersToCount) > 0) {
+            foreach ($this->additionalResponseHeadersToCount as $additionalHeader) {
+                if (isset($headers[$additionalHeader])) {
+                    $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
+                    $this->bumpStatusCode($headerLabel);
+                }
             }
         }
     }
