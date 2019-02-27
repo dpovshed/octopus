@@ -7,6 +7,11 @@ namespace Octopus;
 class Result
 {
     /**
+     * @var array
+     */
+    private $additionalResponseHeadersToCount = [];
+
+    /**
      * URLs that could not be loaded.
      *
      * @var array
@@ -36,8 +41,6 @@ class Result
      * @var int
      */
     private $totalData = 0;
-
-    private $additionalResponseHeadersToCount;
 
     public function setAdditionalResponseHeadersToCount(array $additionalResponseHeadersToCount): void
     {
@@ -83,12 +86,10 @@ class Result
 
     public function countAdditionalHeaders(array $headers): void
     {
-        if (\is_array($this->additionalResponseHeadersToCount) && \count($this->additionalResponseHeadersToCount) > 0) {
-            foreach ($this->additionalResponseHeadersToCount as $additionalHeader) {
-                if (isset($headers[$additionalHeader])) {
-                    $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
-                    $this->bumpStatusCode($headerLabel);
-                }
+        foreach ($this->additionalResponseHeadersToCount as $additionalHeader) {
+            if (isset($headers[$additionalHeader])) {
+                $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
+                $this->bumpStatusCode($headerLabel);
             }
         }
     }
