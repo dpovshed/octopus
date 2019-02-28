@@ -98,6 +98,13 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         $this->removeAllListeners();
     }
 
+    public function addUrls(string ...$urls): void
+    {
+        foreach ($urls as $url) {
+            $this->addUrl($url);
+        }
+    }
+
     public function addUrl(string $url): void
     {
         ++$this->numberOfUrls;
@@ -153,6 +160,18 @@ class Loader extends EventEmitter implements ReadableStreamInterface
 
                     return;
                 }
+            } else {
+                $regularExpressionToDetectUrl = "/^\s*((?U).+)\s*$/mi";
+                $this->logger->notice('detect URLs in TXT file using regular expression: '.$regularExpressionToDetectUrl);
+
+                $matches = [];
+                \preg_match_all($regularExpressionToDetectUrl, $this->buffer, $matches);
+
+                $this->logger->notice(\sprintf('detected %d URLs in TXT file', \count($matches[1])));
+
+                $this->addUrls(...$matches[1]);
+
+                return;
             }
 
             if (!$this->closed) {
@@ -167,7 +186,7 @@ class Loader extends EventEmitter implements ReadableStreamInterface
         try {
             return @(new SimpleXMLElement($data));
         } catch (\Exception $exception) {
-            $this->logger->error('Failed instantiating SimpleXMLElement:'.$exception->getMessage());
+            $this->logger->notice('Failed instantiating SimpleXMLElement:'.$exception->getMessage());
         }
 
         return null;

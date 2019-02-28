@@ -14,7 +14,6 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
-use React\EventLoop\Timer\Timer;
 use React\Promise\Promise;
 use React\Promise\Timer\TimeoutException;
 use React\Stream\ReadableStreamInterface;
@@ -198,7 +197,7 @@ class Processor
     private function getStream(): ReadableStreamInterface
     {
         return new \React\Stream\ReadableResourceStream(
-            \fopen($this->config->targetFile, 'rb'),
+            \fopen($this->config->targetFile, 'r'),
             $this->getLoop()
         );
     }
