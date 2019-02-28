@@ -130,7 +130,7 @@ using a specific concurrency:
 
         $config = $this->determineConfiguration($input);
         $targetManager = new TargetManager($config, $this->getLogger());
-        $processor = new OctopusProcessor($config, $targetManager);
+        $processor = new OctopusProcessor($config, $targetManager, $this->output);
 
         $this->runProcessor($processor, $targetManager);
 

@@ -11,8 +11,11 @@ use Psr\Http\Message\ResponseInterface;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
 use React\EventLoop\Timer\Timer;
-use React\Promise\Timer\TimeoutException;
 use function React\Promise\Timer\timeout;
+use React\Promise\Timer\TimeoutException;
+use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 
 /**
  * Processor core.
@@ -49,6 +52,11 @@ class Processor
      * @var Config
      */
     public $config;
+
+    /**
+     * @var ConsoleOutput
+     */
+    public $output;
 
     /**
      * @var array
@@ -89,13 +97,19 @@ class Processor
      */
     private $loop;
 
-    public function __construct(Config $config, TargetManager $targets)
+    /**
+     * @var Table[]
+     */
+    private $tables = [];
+
+    public function __construct(Config $config, TargetManager $targets, ConsoleOutputInterface $output)
     {
         $this->targetManager = $targets;
         $this->config = $config;
+        $this->output = $output;
         $this->saveEnabled = $config->outputMode === 'save';
         if ($this->saveEnabled || $config->outputBroken) {
-            $this->savePath = $config->outputDestination.DIRECTORY_SEPARATOR;
+            $this->savePath = $config->outputDestination.\DIRECTORY_SEPARATOR;
             if (!@\mkdir($this->savePath) && !\is_dir($this->savePath)) {
                 throw new Exception('Cannot create output directory: '.$this->savePath);
             }
@@ -104,26 +118,9 @@ class Processor
 
     public function timerStatistics(Timer $timer): void
     {
-        $countQueue = $this->targetManager->countQueue();
-        $countRunning = $this->targetManager->countRunning();
-        $countFinished = $this->targetManager->countFinished();
+        $this->reportProgress();
 
-        $codeInfo = [];
-        foreach ($this->statCodes as $code => $count) {
-            $codeInfo[] = \sprintf('%s: %d', $code, $count);
-        }
-
-        echo \sprintf(
-            " %5.1fMB %6.2f sec. Queued/running/done: %d/%d/%d. Statistics: %s           \r",
-            \memory_get_usage(true) / 1048576,
-            \microtime(true) - $this->started,
-            $countQueue,
-            $countRunning,
-            $countFinished,
-            \implode(' ', $codeInfo)
-        );
-
-        if (($countQueue + $countRunning) === 0) {
+        if ($this->targetManager->noMoreUrlsToProcess()) {
             $this->getLoop()->cancelTimer($timer);
         }
     }
@@ -197,6 +194,8 @@ class Processor
                     $this->bumpStatusCode($httpResponseCode);
                     $this->targetManager->done($id);
 
+                    // $this->reportProgress();
+
                     if ($this->config->followRedirects && \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true)) {
                         $headers = $response->getHeaders();
                         $newLocation = $headers['Location'][0];
@@ -259,14 +258,61 @@ class Processor
 
     private function countAdditionalHeaders(array $headers): void
     {
-        if (\is_array($this->config->additionalResponseHeadersToCount) && \count($this->config->additionalResponseHeadersToCount) > 0) {
-            foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
-                if (isset($headers[$additionalHeader])) {
-                    $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
-                    $this->bumpStatusCode($headerLabel);
-                }
+        foreach ($this->config->additionalResponseHeadersToCount as $additionalHeader) {
+            if (isset($headers[$additionalHeader])) {
+                $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
+                $this->bumpStatusCode($headerLabel);
             }
         }
+    }
+
+    private function reportProgress(): void
+    {
+        $status = [
+            'Memory' => \sprintf('%5.1fMB', \memory_get_usage(true) / 1048576),
+            'Time' => \sprintf('%6.2f sec', \microtime(true) - $this->started),
+            'Queued' => $this->targetManager->countQueue(),
+            'Running' => $this->targetManager->countRunning(),
+            'Done' => $this->targetManager->countFinished(),
+        ];
+
+        $rows = $status + $this->statCodes;
+        $tableHeaders = \array_keys($rows);
+
+        $key = \md5(\implode(', ', $tableHeaders));
+
+        $table = $this->tables[$key] ?? $this->tables[$key] = $this->getTable($tableHeaders);
+        $table->appendRow($rows);
+    }
+
+    private function getTable(array $tableHeaders): Table
+    {
+        $table = new Table($this->getOutput()->section());
+        $table->setHeaders($tableHeaders);
+        $table->render(); //Render once, then append rows to gradually populate the table
+
+        return $table;
+    }
+
+    private function getOutput(): ConsoleOutput
+    {
+        return $this->output;
+    }
+
+    private function getStatusRow(): array
+    {
+        return [
+            \count($this->packageOptions),
+            \count($this->packageOptionsWithGrossPrice),
+            //count($this->packageOptionsWithoutGrossPrice),
+            \count($this->packageOptionsWithTaxTariff),
+            //count($this->packageOptionsWithoutTaxTariff),
+            \count($this->packageOptionsWithTaxationDate),
+            //count($this->packageOptionsWithoutTaxationDate),
+            \count($this->packageOptionsWithTaxRate),
+            //count($this->packageOptionsWithoutTaxRate),
+            (\memory_get_peak_usage(true) / 1024 / 1024).' MiB',
+        ];
     }
 
     private function makeFilename(string $octopusUrl, int $octopusId): string

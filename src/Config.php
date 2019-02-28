@@ -86,7 +86,7 @@ class Config
      *
      * @var array
      */
-    public $additionalResponseHeadersToCount;
+    public $additionalResponseHeadersToCount = [];
 
     /**
      * Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
@@ -218,7 +218,7 @@ class Config
 
     public function __construct()
     {
-        $this->outputDestination .= DIRECTORY_SEPARATOR.\time();
+        $this->outputDestination .= \DIRECTORY_SEPARATOR.\time();
     }
 
     /**
