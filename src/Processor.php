@@ -137,7 +137,7 @@ class Processor
     public function getPeriodicTimerCallback(): callable
     {
         return function () {
-            $this->getPresenter()->renderStatistics($this->getTargetManager()->getNumberOfUrls());
+            $this->getPresenter()->renderStatistics($this->result, $this->getTargetManager()->getNumberOfUrls());
 
             if ($this->isCompleted()) {
                 $this->logger->info('no more URLs to process: stop!');
@@ -153,15 +153,20 @@ class Processor
 
     private function getPresenter(): Presenter
     {
-        if (!isset($this->presenter)) {
-            $presenterClass = $this->config->presenterClass;
+        return $this->presenter ?: $this->presenter = $this->determinePresenter();
+    }
 
-            \assert(\class_exists($presenterClass), "Indicated PresenterClass '$presenterClass' does not exist.");
-
-            $this->presenter = new $presenterClass($this->result);
+    private function determinePresenter(): Presenter
+    {
+        if ($this->config->presenter instanceof Presenter) {
+            return $this->config->presenter;
         }
 
-        return $this->presenter;
+        $presenterClass = $this->config->presenter;
+
+        \assert(\class_exists($presenterClass), "Indicated PresenterClass '$presenterClass' does not exist.");
+
+        return new $presenterClass($this->result);
     }
 
     private function getLoop(): LoopInterface
