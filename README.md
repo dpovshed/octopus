@@ -35,6 +35,12 @@ Use a specific UserAgent instead of the default `Octopus/1.0`, for example, to s
 php application.php octopus:run http://www.domain.ext/sitemap.xml --userAgent 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' -vvv
 ```
 
+Use the `TablePresenter` to display intermediate results instead of the default `EchoPresenter`:
+
+```bash
+php application.php octopus:run http://www.domain.ext/sitemap.xml --presenter Octopus\\Presenter\\TablePresenter -vvv
+```
+
 ## Usage from your own application
 You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options. If required you can use a [PSR3-Logger](https://www.php-fig.org/psr/psr-3/) for logging purposes.
 
@@ -51,25 +57,13 @@ $config->additionalResponseHeadersToCount = array(
 $config->requestHeaders = array(
     'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', //Simulate Google's webcrawler
 );
-$targetManager = new OctopusTargetManager($config, $this->logger); //A PSR3 Logger can be injected if required
-$processor = new OctopusProcessor($config, $targetManager);
-try {
-    $numberOfQueuedFiles = $targetManager->populate();
-    $this->logger->info($numberOfQueuedFiles . ' URLs queued for crawling');
-    $processor->spawnBundle();
-} catch (\Exception $e) {
-    $this->logger->notice('Exception on initialization: ' . $e->getMessage());
-    return;
-}
+$processor = new Processor($config, $this->logger); //A PSR3 Logger can be injected if required
+$processor->run();
 
-while ($targetManager->countQueue()) {
-    $processor->run();
-}
-
-$this->logger->info('Statistics: ' . print_r($processor->statCodes, true));
-$this->logger->info('Applied concurrency: ' . $processor->config->concurrency);
-$this->logger->info('Total amount of processed data: ' . $processor->totalData);
-$this->logger->info('Failed to load #URLs: ' . count($processor->brokenUrls));
+$this->logger->info('Statistics: ' . print_r($processor->result->getStatusCodes(), true));
+$this->logger->info('Applied concurrency: ' . $config->concurrency);
+$this->logger->info('Total amount of processed data: ' . $processor->result->getTotalData());
+$this->logger->info('Failed to load #URLs: ' . count($processor->result->getBrokenUrls()));
 ```
 
 ## Limitations

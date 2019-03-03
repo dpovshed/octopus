@@ -30,6 +30,11 @@ class Config
     /**
      * @var string
      */
+    public const PRESENTER_DEFAULT = EchoPresenter::class;
+
+    /**
+     * @var string
+     */
     public const REQUEST_HEADER_USER_AGENT = 'User-Agent';
 
     /**
@@ -134,11 +139,11 @@ class Config
     public $outputMode = self::OUTPUT_MODE_COUNT;
 
     /**
-     * The class used to present intermediate results.
+     * The class or Presenter instance used to present intermediate results.
      *
-     * @var string
+     * @var string|Presenter
      */
-    public $presenterClass = EchoPresenter::class;
+    public $presenter = self::PRESENTER_DEFAULT;
 
     /**
      * The headers used in the request to fetch a URL.

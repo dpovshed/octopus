@@ -6,7 +6,5 @@ namespace Octopus;
 
 interface Presenter
 {
-    public function __construct(Result $result);
-
-    public function renderStatistics(int $totalNumberOfUrls): void;
+    public function renderStatistics(Result $result, int $totalNumberOfUrls): void;
 }

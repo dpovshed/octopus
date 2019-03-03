@@ -45,7 +45,7 @@ class Result
     /**
      * @var array
      */
-    private $statCodes = [];
+    private $statusCodes = [];
 
     /**
      * Total amount of processed data.
@@ -121,7 +121,7 @@ class Result
 
     public function getStatusCodes(): array
     {
-        return $this->statCodes;
+        return $this->statusCodes;
     }
 
     public function done(string $url): void
@@ -156,7 +156,7 @@ class Result
 
     private function bumpStatusCode($statusCode): void
     {
-        $this->statCodes[$statusCode] = $this->statCodes[$statusCode] ?? 0;
-        ++$this->statCodes[$statusCode];
+        $this->statusCodes[$statusCode] = $this->statusCodes[$statusCode] ?? 0;
+        ++$this->statusCodes[$statusCode];
     }
 }

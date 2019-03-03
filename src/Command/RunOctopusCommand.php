@@ -6,6 +6,7 @@ namespace Octopus\Command;
 
 use DateTime;
 use Octopus\Config;
+use Octopus\Presenter\TablePresenter;
 use Octopus\Processor;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -34,6 +35,11 @@ class RunOctopusCommand extends Command
      * @var string
      */
     private const COMMAND_OPTION_CONCURRENCY = 'concurrency';
+
+    /**
+     * @var string
+     */
+    private const COMMAND_OPTION_PRESENTER = 'presenter';
 
     /**
      * @var string
@@ -81,6 +87,11 @@ class RunOctopusCommand extends Command
     private $crawlingEndedDateTime;
 
     /**
+     * @var InputInterface
+     */
+    private $input;
+
+    /**
      * @var LoggerInterface
      */
     private $logger;
@@ -105,6 +116,7 @@ class RunOctopusCommand extends Command
             ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently. Defaults to '.Config::CONCURRENCY_DEFAULT)
             ->addOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS, null, InputOption::VALUE_OPTIONAL, 'Should the crawler follow HTTP redirects? Defaults to '.(Config::FOLLOW_HTTP_REDIRECTS_DEFAULT ? 'true' : 'false'))
             ->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to '.Config::REQUEST_HEADER_USER_AGENT_DEFAULT)
+            ->addOption(self::COMMAND_OPTION_PRESENTER, null, InputOption::VALUE_OPTIONAL, 'The type of Presenter to display the Results, defaults to '.Config::PRESENTER_DEFAULT)
             ->addOption(self::COMMAND_OPTION_REQUEST_TYPE, null, InputOption::VALUE_OPTIONAL, 'The type of HTTP request, HEAD put lesser load to server while GET loads whole page. Defaults to '.Config::REQUEST_TYPE_DEFAULT)
             ->addOption(self::COMMAND_OPTION_TARGET_TYPE, null, InputOption::VALUE_OPTIONAL, 'List of URLs to parse could be provided as sitemap or plain text. Defaults to '.Config::TARGET_TYPE_DEFAULT)
             ->addOption(self::COMMAND_OPTION_TIMEOUT, null, InputOption::VALUE_OPTIONAL, 'Timeout for a request, in seconds. Defaults to '.Config::TIMEOUT_DEFAULT)
@@ -123,11 +135,12 @@ using a specific concurrency:
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->input = $input;
         $this->output = $output;
         $this->crawlingStartedDateTime = new DateTime();
         $this->getLogger()->debug('Starting Octopus Sitemap Crawler');
 
-        $config = $this->determineConfiguration($input);
+        $config = $this->determineConfiguration();
         $processor = new Processor($config, $this->getLogger());
         $processor->run();
 
@@ -145,45 +158,54 @@ using a specific concurrency:
         return $this->logger ?: $this->logger = new ConsoleLogger($this->output);
     }
 
-    private function determineConfiguration(InputInterface $input): Config
+    private function determineConfiguration(): Config
     {
         $config = new Config();
-        $config->targetFile = $input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
+        $config->targetFile = $this->input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
         $this->getLogger()->notice('Loading URLs from Sitemap: '.$config->targetFile);
 
-        if (\is_string($input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
-            $additionalResponseHeadersToCount = $input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
+        if (\is_string($this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
+            $additionalResponseHeadersToCount = $this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = \explode(',', $additionalResponseHeadersToCount);
             $this->getLogger()->notice('Keep track of additional response headers: '.$additionalResponseHeadersToCount);
         }
-        if (\is_numeric($input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
-            $config->concurrency = (int) $input->getOption(self::COMMAND_OPTION_CONCURRENCY);
+        if (\is_numeric($this->input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
+            $config->concurrency = (int) $this->input->getOption(self::COMMAND_OPTION_CONCURRENCY);
             $this->getLogger()->notice('Using concurrency: '.$config->concurrency);
         }
-        if (\is_string($input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS))) {
-            $followRedirectsValue = $input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS);
+        if (\is_string($this->input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS))) {
+            $followRedirectsValue = $this->input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS);
             $config->followRedirects = $followRedirectsValue === 'true';
             $this->getLogger()->notice('Follow HTTP redirects: '.$followRedirectsValue);
         }
-        if (\is_string($input->getOption(self::COMMAND_OPTION_USER_AGENT))) {
-            $userAgentValue = $input->getOption(self::COMMAND_OPTION_USER_AGENT);
+        if (\is_string($this->input->getOption(self::COMMAND_OPTION_USER_AGENT))) {
+            $userAgentValue = $this->input->getOption(self::COMMAND_OPTION_USER_AGENT);
             $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgentValue;
             $this->getLogger()->notice('Use UserAgent for issued requests: '.$userAgentValue);
         }
-        if (\is_string($input->getOption(self::COMMAND_OPTION_REQUEST_TYPE))) {
-            $config->requestType = $input->getOption(self::COMMAND_OPTION_REQUEST_TYPE);
+        if (\is_string($this->input->getOption(self::COMMAND_OPTION_PRESENTER))) {
+            $config->presenter = $this->input->getOption(self::COMMAND_OPTION_PRESENTER);
+            $this->getLogger()->notice('Using Presenter: '.$config->presenter);
+
+            if ($config->presenter === TablePresenter::class) {
+                $this->getLogger()->notice('Instantiate Presenter to be able to inject output interface');
+                $config->presenter = new TablePresenter($this->output);
+            }
+        }
+        if (\is_string($this->input->getOption(self::COMMAND_OPTION_REQUEST_TYPE))) {
+            $config->requestType = $this->input->getOption(self::COMMAND_OPTION_REQUEST_TYPE);
             $this->getLogger()->notice('Using request type: '.$config->requestType);
         }
-        if (\is_string($input->getOption(self::COMMAND_OPTION_TARGET_TYPE))) {
-            $config->targetType = $input->getOption(self::COMMAND_OPTION_TARGET_TYPE);
+        if (\is_string($this->input->getOption(self::COMMAND_OPTION_TARGET_TYPE))) {
+            $config->targetType = $this->input->getOption(self::COMMAND_OPTION_TARGET_TYPE);
             $this->getLogger()->notice('Source file format: '.$config->targetType);
         }
-        if (\is_numeric($input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
-            $config->timeout = (float) $input->getOption(self::COMMAND_OPTION_TIMEOUT);
+        if (\is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
+            $config->timeout = (float) $this->input->getOption(self::COMMAND_OPTION_TIMEOUT);
             $this->getLogger()->notice('Using per-request timeout: '.$config->timeout);
         }
-        if (\is_numeric($input->getOption(self::COMMAND_OPTION_TIMER_UI))) {
-            $config->timerUI = (float) $input->getOption(self::COMMAND_OPTION_TIMER_UI);
+        if (\is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMER_UI))) {
+            $config->timerUI = (float) $this->input->getOption(self::COMMAND_OPTION_TIMER_UI);
             $this->getLogger()->notice('Using timerUI refresh rate: '.$config->timerUI);
         }
 
