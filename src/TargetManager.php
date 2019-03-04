@@ -1,18 +1,19 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Octopus;
 
-use Exception;
+use Evenement\EventEmitter;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use React\Stream\ReadableStreamInterface;
+use React\Stream\Util;
+use React\Stream\WritableStreamInterface;
 use SimpleXMLElement;
 
 /**
- * Define all aspects of managing list and states of target URLs.
+ * The TargetManager reads URLs from a plain stream and emits them.
  */
-class TargetManager
+class TargetManager extends EventEmitter implements ReadableStreamInterface
 {
     /**
      * @see https://www.sitemaps.org/protocol.html
@@ -43,14 +44,19 @@ class TargetManager
     private const XML_SITEMAP_ROOT_ELEMENT = 'urlset';
 
     /**
-     * @var Config
+     * @var string
      */
-    private $config;
+    private $buffer = '';
 
     /**
-     * @var array
+     * @var bool
      */
-    private $finishedUrls = [];
+    private $closed = false;
+
+    /**
+     * @var ReadableStreamInterface
+     */
+    private $input;
 
     /**
      * @var LoggerInterface
@@ -58,166 +64,132 @@ class TargetManager
     private $logger;
 
     /**
-     * @var array
+     * @var int
      */
-    private $queuedUrls = [];
+    private $numberOfUrls = 0;
 
-    /**
-     * @var array
-     */
-    private $runningUrls = [];
-
-    public function __construct(Config $config, LoggerInterface $logger = null)
+    public function __construct(ReadableStreamInterface $input, LoggerInterface $logger = null)
     {
-        $this->config = $config;
+        $this->input = $input;
         $this->logger = $logger ?? new NullLogger();
-    }
 
-    public function populate(): int
-    {
-        if (!($data = @\file_get_contents($this->config->targetFile))) {
-            $lastErrorMessage = \error_get_last()['message'];
-            $this->logger->critical('Failed loading {targetFile}, last error message: {lastErrorMessage}', ['targetFile' => $this->config->targetFile, 'lastErrorMessage' => $lastErrorMessage ?? 'n/a']);
-
-            throw new Exception($lastErrorMessage ?? 'Failed loading '.$this->config->targetFile);
+        if (!$input->isReadable()) {
+            $this->close();
         }
 
-        switch ($this->config->targetType) {
-            case 'xml':
-                $xmlElement = new SimpleXMLElement($data);
+        $this->input->on('data', $this->getHandleDataCallback());
+        $this->input->on('end', $this->getHandleEndCallback());
+        $this->input->on('error', $this->getHandleErrorCallback());
+        $this->input->on('close', $this->getHandleCloseCallback());
+    }
+
+    public function close(): void
+    {
+        if ($this->closed) {
+            return;
+        }
+
+        $this->closed = true;
+        $this->buffer = '';
+
+        $this->input->close();
+
+        $this->emit('close');
+        $this->removeAllListeners();
+    }
+
+    public function addUrls(string ...$urls): void
+    {
+        foreach ($urls as $url) {
+            $this->addUrl($url);
+        }
+    }
+
+    public function addUrl(string $url): void
+    {
+        ++$this->numberOfUrls;
+        $this->logger->debug('emitting URL: '.$url);
+        $this->emit('data', [$url]);
+    }
+
+    public function getNumberOfUrls(): int
+    {
+        return $this->numberOfUrls;
+    }
+
+    public function isReadable(): bool
+    {
+        return !$this->closed;
+    }
+
+    public function pause(): void
+    {
+        $this->input->pause();
+    }
+
+    public function resume(): void
+    {
+        $this->input->resume();
+    }
+
+    public function pipe(WritableStreamInterface $destination, array $options = []): WritableStreamInterface
+    {
+        Util::pipe($this, $destination, $options);
+
+        return $destination;
+    }
+
+    private function getHandleDataCallback(): callable
+    {
+        return function ($data): void {
+            $this->buffer .= $data;
+        };
+    }
+
+    private function getHandleEndCallback(): callable
+    {
+        return function (): void {
+            if ($xmlElement = $this->getSimpleXMLElement($this->buffer)) {
                 if ($this->isXmlSitemapIndex($xmlElement)) {
                     $this->processSitemapIndex($xmlElement);
 
-                    return \count($this->queuedUrls);
+                    return;
                 }
                 if ($this->isXmlSitemap($xmlElement)) {
                     $this->processSitemapElement($xmlElement);
 
-                    return \count($this->queuedUrls);
+                    return;
                 }
+            } else {
+                $regularExpressionToDetectUrl = "/^\s*((?U).+)\s*$/mi";
+                $this->logger->notice('detect URLs in TXT file using regular expression: '.$regularExpressionToDetectUrl);
 
-                $mask = "/\<loc\>(.+)\<\/loc\>/miU";
-                break;
-            case 'txt':
-                $mask = "/^\s*((?U).+)\s*$/mi";
-                break;
-            default:
-                throw new Exception('Unsupported file type: '.$this->config->targetType);
+                $matches = [];
+                \preg_match_all($regularExpressionToDetectUrl, $this->buffer, $matches);
+
+                $this->logger->notice(\sprintf('detected %d URLs in TXT file', \count($matches[1])));
+
+                $this->addUrls(...$matches[1]);
+
+                return;
+            }
+
+            if (!$this->closed) {
+                $this->emit('end');
+                $this->close();
+            }
+        };
+    }
+
+    private function getSimpleXMLElement(string $data): ?SimpleXMLElement
+    {
+        try {
+            return @(new SimpleXMLElement($data));
+        } catch (\Exception $exception) {
+            $this->logger->notice('Failed instantiating SimpleXMLElement:'.$exception->getMessage());
         }
 
-        $this->logger->debug('detect URLs using regular expression: '.$mask);
-
-        $matches = [];
-        if (!\preg_match_all($mask, $data, $matches)) {
-            throw new Exception('No URL entries found');
-        }
-        $this->queuedUrls = $matches[1];
-
-        return \count($this->queuedUrls);
-    }
-
-    public function add(string $url): int
-    {
-        $this->queuedUrls[] = $url;
-
-        return \max(\array_keys($this->queuedUrls));
-    }
-
-    public function done(int $id): void
-    {
-        $this->finishedUrls[$id] = $this->runningUrls[$id];
-        unset($this->runningUrls[$id]);
-    }
-
-    public function retry(int $id): int
-    {
-        $this->queuedUrls[] = $this->finishedUrls[$id];
-
-        return \max(\array_keys($this->queuedUrls));
-    }
-
-    /**
-     * Launch the next URL in the queue.
-     *
-     * @return array
-     */
-    public function launchNext(): array
-    {
-        \assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
-        $id = \key($this->queuedUrls);
-        $url = $this->queuedUrls[$id];
-        $this->launch($id);
-
-        return [$id, $url];
-    }
-
-    /**
-     * This one normally used for relaunching.
-     *
-     * @param int $id
-     */
-    public function launch(int $id): void
-    {
-        $this->runningUrls[$id] = $this->queuedUrls[$id];
-        unset($this->queuedUrls[$id]);
-    }
-
-    /**
-     * Launch a random URL from the queue.
-     *
-     * @return array
-     */
-    public function launchAny(): array
-    {
-        \assert($this->queuedUrls, 'Cannot launch, nothing in queue!');
-        $id = \array_rand($this->queuedUrls);
-        $url = $this->queuedUrls[$id];
-        $this->launch($id);
-
-        return [$id, $url];
-    }
-
-    public function countFinished(): int
-    {
-        return \count($this->finishedUrls);
-    }
-
-    public function hasFreeSlots(): bool
-    {
-        return $this->getFreeSlots() > 0;
-    }
-
-    public function getFreeSlots(): int
-    {
-        return \min($this->config->concurrency - $this->countRunning(), $this->countQueue());
-    }
-
-    public function countRunning(): int
-    {
-        return \count($this->runningUrls);
-    }
-
-    public function countQueue(): int
-    {
-        return \count($this->queuedUrls);
-    }
-
-    public function noMoreUrlsToProcess(): bool
-    {
-        return $this->countQueuedAndRunningUrls() === 0;
-    }
-
-    public function countQueuedAndRunningUrls(): int
-    {
-        return $this->countQueue() + $this->countRunning();
-    }
-
-    private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
-    {
-        $xmlRootElement = $xmlElement->getName();
-
-        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT //Used by standalone Sitemaps
-            || $xmlRootElement === self::XML_SITEMAP_ELEMENT; //Used when part of a Sitemap Index
+        return null;
     }
 
     private function isXmlSitemapIndex(SimpleXMLElement $xmlElement): bool
@@ -233,43 +205,7 @@ class TargetManager
             foreach ($sitemapLocationElements as $sitemapLocationElement) {
                 $sitemapUrl = (string) $sitemapLocationElement;
                 $this->processSitemapUrl($sitemapUrl);
-            }
-        }
-    }
-
-    private function processSitemapUrl(string $sitemapUrl): void
-    {
-        if ($data = $this->loadData($sitemapUrl)) {
-            try {
-                $sitemapElement = @new SimpleXMLElement($data);
-                $this->processSitemapElement($sitemapElement);
-            } catch (Exception $exception) {
-                $this->logger->critical('Caught exception while processing XML Sitemap {sitemapUrl}: {exceptionMessage}', ['sitemapUrl' => $sitemapUrl, 'exceptionMessage' => $exception->getMessage()]);
-            }
-        }
-    }
-
-    private function loadData(string $file): ?string
-    {
-        if ($data = @\file_get_contents($file)) {
-            $this->logger->debug('Loaded data from {file}, data length {dataLength}', ['file' => $file, 'dataLength' => \mb_strlen($data)]);
-
-            return $data;
-        }
-
-        $this->logger->critical('Failed loading data from {file}, last error messages: {lastErrorMessages}', ['file' => $file, 'lastErrorMessages' => \print_r(\error_get_last(), true)]);
-
-        return null;
-    }
-
-    private function processSitemapElement(SimpleXMLElement $sitemapElement): void
-    {
-        if ($sitemapLocationElements = $this->getSitemapLocationElements($sitemapElement)) {
-            foreach ($sitemapLocationElements as $sitemapLocationElement) {
-                $sitemapUrl = (string) $sitemapLocationElement;
-                $this->queuedUrls[] = $sitemapUrl;
-
-                $this->logger->debug('Queued URL {queueLength}: {url}', ['queueLength' => \count($this->queuedUrls), 'url' => $sitemapUrl]);
+                $this->logger->info('processed '.$sitemapUrl.', #URLs: '.$this->getNumberOfUrls());
             }
         }
     }
@@ -282,5 +218,57 @@ class TargetManager
         }
 
         return null;
+    }
+
+    private function processSitemapUrl(string $sitemapUrl): void
+    {
+        if ($data = $this->loadExternalData($sitemapUrl)) {
+            if ($sitemapElement = $this->getSimpleXMLElement($data)) {
+                $this->processSitemapElement($sitemapElement);
+            }
+        }
+    }
+
+    private function loadExternalData(string $file): ?string
+    {
+        if ($data = @\file_get_contents($file)) {
+            return $data;
+        }
+
+        return null;
+    }
+
+    private function processSitemapElement(SimpleXMLElement $sitemapElement): void
+    {
+        if ($sitemapLocationElements = $this->getSitemapLocationElements($sitemapElement)) {
+            foreach ($sitemapLocationElements as $sitemapLocationElement) {
+                $sitemapUrl = (string) $sitemapLocationElement;
+
+                $this->addUrl($sitemapUrl);
+            }
+        }
+    }
+
+    private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
+    {
+        $xmlRootElement = $xmlElement->getName();
+
+        return $xmlRootElement === self::XML_SITEMAP_ROOT_ELEMENT //Used by standalone Sitemaps
+            || $xmlRootElement === self::XML_SITEMAP_ELEMENT; //Used when part of a Sitemap Index
+    }
+
+    private function getHandleErrorCallback(): callable
+    {
+        return function (\Exception $error): void {
+            $this->emit('error', [$error]);
+            $this->close();
+        };
+    }
+
+    private function getHandleCloseCallback(): callable
+    {
+        return function (): void {
+            $this->close();
+        };
     }
 }
