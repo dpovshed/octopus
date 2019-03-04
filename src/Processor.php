@@ -58,13 +58,6 @@ class Processor
     private $savePath;
 
     /**
-     * Timestamp to track execution time.
-     *
-     * @var float
-     */
-    private $started;
-
-    /**
      * @var array
      */
     private $httpRedirectionResponseCodes = [
