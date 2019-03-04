@@ -10,7 +10,7 @@
     "react/event-loop": "^0.4||^1.0",
     "react/http-client": "^0.5",
     "clue/buzz-react": "^2.2",
-    "clue/reactphp-flux": "^1.0",
+    "clue/reactphp-flux": "^1.1",
     "teapot/status-code": "^1.1"
   },
   "require-dev": {
