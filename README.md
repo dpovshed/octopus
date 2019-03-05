@@ -45,11 +45,11 @@ php application.php octopus:run http://www.domain.ext/sitemap.xml --presenter Oc
 You can easily integrate sitemap crawling in your own application, have a look at the `Config` class for all possible configuration options. If required you can use a [PSR3-Logger](https://www.php-fig.org/psr/psr-3/) for logging purposes.
 
 ```php
-use Octopus\Config as OctopusConfig;
-use Octopus\Processor as OctopusProcessor;
-use Octopus\TargetManager as OctopusTargetManager;
+use Octopus\Config;
+use Octopus\Processor;
 
-$config = new OctopusConfig();
+$config = new Config();
+$config->concurrency = $2;
 $config->targetFile = $sitemapUrl;
 $config->additionalResponseHeadersToCount = array(
     'CF-Cache-Status', //Useful to check CloudFlare edge server cache status
