@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
-use React\Promise\Promise;
+use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
 use React\Stream\ReadableStreamInterface;
 use Teapot\StatusCode\Http;
@@ -206,14 +206,14 @@ class Processor
 
     private function getLoadUrlUsingBrowserCallback(): callable
     {
-        return function (string $url): Promise {
+        return function (string $url): PromiseInterface {
             return $this->loadUrlWithBrowser($url)
                 ->then($this->getOnFulfilledCallback($url))
                 ->otherwise($this->getOnRejectedCallback($url));
         };
     }
 
-    private function loadUrlWithBrowser(string $url): Promise
+    private function loadUrlWithBrowser(string $url): PromiseInterface
     {
         $requestType = \mb_strtolower($this->config->requestType);
 
