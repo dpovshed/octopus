@@ -187,7 +187,7 @@ class Processor
 
     private function isCompleted(): bool
     {
-        return $this->result->countFinishedUrls() > 0 && $this->getNumberOfRemainingUrlsToProcess() === 0;
+        return $this->getNumberOfRemainingUrlsToProcess() === 0;
     }
 
     private function getTransformer(): Transformer

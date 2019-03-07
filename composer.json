@@ -6,6 +6,7 @@
   "minimum-stability": "dev",
   "require": {
     "php": "^7.1",
+    "ext-simplexml": "*",
     "clue/buzz-react": "^2.2",
     "clue/reactphp-flux": "^1.1",
     "psr/log": "^1.1",
