@@ -15,6 +15,7 @@ use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
 use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
+use React\Stream\ReadableResourceStream;
 use React\Stream\ReadableStreamInterface;
 use Teapot\StatusCode\Http;
 
@@ -105,11 +106,13 @@ class Processor
 
     public function __construct(Config $config, LoggerInterface $logger = null)
     {
+        $config->validate();
+
         $this->config = $config;
         $this->result = new Result($config);
         $this->logger = $logger ?? new NullLogger();
 
-        $this->saveEnabled = $config->outputMode === 'save';
+        $this->saveEnabled = $config->outputMode === Config::OUTPUT_MODE_SAVE;
         if ($this->saveEnabled || $config->outputBroken) {
             $this->savePath = $config->outputDestination.\DIRECTORY_SEPARATOR;
             if (!@\mkdir($this->savePath) && !\is_dir($this->savePath)) {
@@ -124,6 +127,7 @@ class Processor
         $this->getLoop()->addPeriodicTimer($this->config->timerUI, $this->getPeriodicTimerCallback());
 
         // load a collection of URLs and pass it through the Transformer
+
         $this->getTargetManager()->pipe($this->getTransformer());
     }
 
@@ -177,12 +181,16 @@ class Processor
         return $this->targetManager ?: $this->targetManager = new TargetManager($this->getStream(), $this->logger);
     }
 
-    private function getStream(): ReadableStreamInterface
+    private function getStream(): ?ReadableStreamInterface
     {
-        return new \React\Stream\ReadableResourceStream(
-            \fopen($this->config->targetFile, 'r'),
-            $this->getLoop()
-        );
+        $handle = @\fopen($this->config->targetFile, 'r');
+        if (!$handle) {
+            $this->logger->error(\sprintf('Could not open target file "%s"', $this->config->targetFile));
+
+            return null;
+        }
+
+        return new ReadableResourceStream($handle, $this->getLoop());
     }
 
     private function isCompleted(): bool

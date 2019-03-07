@@ -68,19 +68,21 @@ class TargetManager extends EventEmitter implements ReadableStreamInterface
      */
     private $numberOfUrls = 0;
 
-    public function __construct(ReadableStreamInterface $input, LoggerInterface $logger = null)
+    public function __construct(ReadableStreamInterface $input = null, LoggerInterface $logger = null)
     {
-        $this->input = $input;
         $this->logger = $logger ?? new NullLogger();
+        if ($input) {
+            if (!$input->isReadable()) {
+                $this->logger->info('Input is not readable, closing');
 
-        if (!$input->isReadable()) {
-            $this->close();
+                $this->close();
+                $input->close();
+
+                return;
+            }
+
+            $this->setInput($input);
         }
-
-        $this->input->on('data', $this->getHandleDataCallback());
-        $this->input->on('end', $this->getHandleEndCallback());
-        $this->input->on('error', $this->getHandleErrorCallback());
-        $this->input->on('close', $this->getHandleCloseCallback());
     }
 
     public function close(): void
@@ -91,8 +93,6 @@ class TargetManager extends EventEmitter implements ReadableStreamInterface
 
         $this->closed = true;
         $this->buffer = '';
-
-        $this->input->close();
 
         $this->emit('close');
         $this->removeAllListeners();
@@ -137,6 +137,15 @@ class TargetManager extends EventEmitter implements ReadableStreamInterface
         Util::pipe($this, $destination, $options);
 
         return $destination;
+    }
+
+    private function setInput(ReadableStreamInterface $input): void
+    {
+        $this->input = $input;
+        $this->input->on('data', $this->getHandleDataCallback());
+        $this->input->on('end', $this->getHandleEndCallback());
+        $this->input->on('error', $this->getHandleErrorCallback());
+        $this->input->on('close', $this->getHandleCloseCallback());
     }
 
     private function getHandleDataCallback(): callable

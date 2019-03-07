@@ -13,7 +13,8 @@
     "react/event-loop": "^0.4||^1.0",
     "react/http-client": "^0.5",
     "symfony/console": "^3.3||^4.0",
-    "teapot/status-code": "^1.1"
+    "teapot/status-code": "^1.1",
+    "phpunit/phpunit": "^8.0"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "@stable",
@@ -25,6 +26,11 @@
       "Octopus\\": "src/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "Octopus\\Test\\": "tests/"
+    }
+  },
   "scripts": {
     "phpcs": [
       "./vendor/bin/php-cs-fixer fix --dry-run --verbose --config .php_cs.php"
@@ -34,6 +40,9 @@
     ],
     "phpstan": [
       "./vendor/bin/phpstan analyse --level 5 src"
+    ],
+    "phpunit": [
+      "./vendor/bin/phpunit"
     ]
   }
 }
