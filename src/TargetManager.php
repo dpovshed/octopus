@@ -149,7 +149,11 @@ class TargetManager extends EventEmitter implements ReadableStreamInterface
     private function getHandleEndCallback(): callable
     {
         return function (): void {
-            if ($xmlElement = $this->getSimpleXMLElement($this->buffer)) {
+            $xmlElement = $this->getSimpleXMLElement($this->buffer);
+
+            if ($xmlElement instanceof SimpleXMLElement) {
+                $this->logger->notice('Instantiated SimpleXMLElement with "{elementCount}" children', ['elementCount' => $xmlElement->count()]);
+
                 if ($this->isXmlSitemapIndex($xmlElement)) {
                     $this->processSitemapIndex($xmlElement);
 
