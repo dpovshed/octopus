@@ -69,3 +69,22 @@ $this->logger->info('Failed to load #URLs: ' . count($processor->result->getBrok
 ## Limitations
 Currently Octopus is mainly an experimental / educational tool. Advanced use cases in HTTP response handling might not be supported.
 
+## Tests
+
+To run the test suite, you first need to clone this repository and then install all dependencies [using Composer](https://getcomposer.org):
+
+```bash
+$ composer install
+```
+
+To run the test suite, go to the project root and run:
+
+```bash
+$ php vendor/bin/phpunit
+```
+
+or as a shortcut:
+
+```bash
+$ composer phpunit
+```

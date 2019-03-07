@@ -26,6 +26,7 @@ $config->setRules([
 $finder = \PhpCsFixer\Finder::create();
 $finder->files();
 $finder->in('src');
+$finder->in('tests');
 
 $config->setFinder($finder);
 $config->setUsingCache(true);

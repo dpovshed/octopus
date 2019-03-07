@@ -209,8 +209,6 @@ using a specific concurrency:
             $this->getLogger()->notice('Using timerUI refresh rate: '.$config->timerUI);
         }
 
-        $config->validate();
-
         return $config;
     }
 
