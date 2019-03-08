@@ -8,6 +8,7 @@ use Clue\React\Buzz\Browser;
 use Clue\React\Buzz\Message\ResponseException;
 use Clue\React\Flux\Transformer;
 use Exception;
+use Octopus\TargetManager\TargetManagerFactory;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -126,26 +127,32 @@ class Processor
 
         $this->getLoop()->addPeriodicTimer($this->config->timerUI, $this->getPeriodicTimerCallback());
 
-        // load a collection of URLs and pass it through the Transformer
-
+        // Instantiate the TargetManager to load a collection of URLs and pass it through the Transformer which will actually handle the URLs
         $this->getTargetManager()->pipe($this->getTransformer());
     }
 
     public function getPeriodicTimerCallback(): callable
     {
-        return function () {
-            $this->getPresenter()->renderStatistics($this->result, $this->getTargetManager()->getNumberOfUrls());
-
-            if ($this->isCompleted()) {
+        return function (): void {
+            if ($this->getTargetManager()->isInitialized() && $this->isCompleted()) {
                 $this->logger->info('no more URLs to process: stop!');
                 $this->getLoop()->stop();
+
+                return;
             }
+
+            $this->getPresenter()->renderStatistics($this->result, $this->getTargetManager()->getNumberOfUrls());
         };
     }
 
     public function run(): void
     {
         $this->getLoop()->run();
+    }
+
+    private function getNumberOfRemainingUrlsToProcess(): int
+    {
+        return $this->getTargetManager()->getNumberOfUrls() - $this->result->countFinishedUrls();
     }
 
     private function getPresenter(): Presenter
@@ -171,14 +178,9 @@ class Processor
         return $this->loop ?: $this->loop = EventLoopFactory::create();
     }
 
-    private function getNumberOfRemainingUrlsToProcess(): int
-    {
-        return $this->getTargetManager()->getNumberOfUrls() - $this->result->countFinishedUrls();
-    }
-
     private function getTargetManager(): TargetManager
     {
-        return $this->targetManager ?: $this->targetManager = new TargetManager($this->getStream(), $this->logger);
+        return $this->targetManager ?: $this->targetManager = TargetManagerFactory::getInstance($this->getStream(), $this->logger);
     }
 
     private function getStream(): ?ReadableStreamInterface
@@ -200,16 +202,23 @@ class Processor
 
     private function getTransformer(): Transformer
     {
-        return $this->transformer ?: $this->transformer = (new Transformer($this->config->concurrency, $this->getLoadUrlUsingBrowserCallback()))
-            ->on('data', function ($data) {
-                $this->logger->debug('Transformer received data event');
-            })
-            ->on('end', function () {
-                $this->logger->debug('Transformer received end event');
-            })
-            ->on('error', function () {
-                $this->logger->debug('Transformer received error event');
-            });
+        return $this->transformer ?: $this->transformer = $this->instantiateNewTransformer();
+    }
+
+    private function instantiateNewTransformer(): Transformer
+    {
+        $transformer = new Transformer($this->config->concurrency, $this->getLoadUrlUsingBrowserCallback());
+        $transformer->on('data', function ($data): void {
+            $this->logger->debug('Transformer received data event');
+        });
+        $transformer->on('end', function (): void {
+            $this->logger->debug('Transformer received end event');
+        });
+        $transformer->on('error', function (): void {
+            $this->logger->debug('Transformer received error event');
+        });
+
+        return $transformer;
     }
 
     private function getLoadUrlUsingBrowserCallback(): callable
