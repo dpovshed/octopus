@@ -108,14 +108,6 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         $this->removeAllListeners();
     }
 
-    public function addUrl(string $url): void
-    {
-        $this->initialized = true;
-        ++$this->numberOfUrls;
-        $this->logger->debug('emitting URL: '.$url);
-        $this->emit('data', [$url]);
-    }
-
     public function getNumberOfUrls(): int
     {
         return $this->numberOfUrls;
@@ -154,6 +146,13 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         return $destination;
     }
 
+    private function addUrl(string $url): void
+    {
+        ++$this->numberOfUrls;
+        $this->logger->debug('emitting URL: '.$url);
+        $this->emit('data', [$url]);
+    }
+
     private function setInput(ReadableStreamInterface $input): void
     {
         $this->input = $input;
@@ -174,6 +173,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     {
         return function (): void {
             $this->processBuffer();
+            $this->initialized = true; //Mark TargetManager as initialized: from now on it can be processed, stopped, etc.
         };
     }
 
