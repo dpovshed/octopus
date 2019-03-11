@@ -36,11 +36,6 @@ class NullTargetManager extends EventEmitter implements ReadableStreamInterface,
         return 0;
     }
 
-    public function addUrl(string $url): void
-    {
-        $this->logger->info('ignore added URL: '.$url);
-    }
-
     public function isInitialized(): bool
     {
         return true;
