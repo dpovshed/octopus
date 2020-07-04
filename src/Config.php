@@ -89,54 +89,40 @@ class Config
 
     /**
      * An array of some additional response headers to count.
-     *
-     * @var array
      */
-    public $additionalResponseHeadersToCount = [];
+    public array $additionalResponseHeadersToCount = [];
 
     /**
      * Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
-     *
-     * @var int
      */
-    public $bonusRespawn = 0;
+    public int $bonusRespawn = 0;
 
     /**
      * Number of concurrent / simultaneous requests.
      *
      * Be careful selecting very large value here. A value between 10-50 usually brings enough speed and fun.
-     *
-     * @var int
      */
-    public $concurrency = self::CONCURRENCY_DEFAULT;
+    public int $concurrency = self::CONCURRENCY_DEFAULT;
 
     /**
      * In case a requested URL returns a HTTP redirection status code, should it be followed?
-     *
-     * @var bool
      */
-    public $followRedirects = self::FOLLOW_HTTP_REDIRECTS_DEFAULT;
+    public bool $followRedirects = self::FOLLOW_HTTP_REDIRECTS_DEFAULT;
 
     /**
      * If turned on: write list of failed URLs to a file.
-     *
-     * @var bool
      */
-    public $outputBroken = true;
+    public bool $outputBroken = true;
 
     /**
      * ~/save-to-some-dir if needed.
-     *
-     * @var string
      */
-    public $outputDestination = '/tmp';
+    public string $outputDestination = '/tmp';
 
     /**
      * Either 'save' or 'count'.
-     *
-     * @var string
      */
-    public $outputMode = self::OUTPUT_MODE_COUNT;
+    public string $outputMode = self::OUTPUT_MODE_COUNT;
 
     /**
      * The class or Presenter instance used to present intermediate results.
@@ -147,10 +133,8 @@ class Config
 
     /**
      * The headers used in the request to fetch a URL.
-     *
-     * @var array
      */
-    public $requestHeaders = [
+    public array $requestHeaders = [
         self::REQUEST_HEADER_USER_AGENT => self::REQUEST_HEADER_USER_AGENT_DEFAULT,
     ];
 
@@ -158,61 +142,51 @@ class Config
      * Type of the request, 'GET'/'HEAD'.
      *
      * With HEAD saving data is not possible.
-     *
-     * @var string
      */
-    public $requestType = self::REQUEST_TYPE_HEAD;
+    public string $requestType = self::REQUEST_TYPE_HEAD;
 
     /**
      * The format of the loaded sitemap.
      *
      * Either 'xml' or 'txt'
-     *
-     * @var string
      */
-    public $targetType = self::TARGET_TYPE_XML;
+    public string $targetType = self::TARGET_TYPE_XML;
 
     /**
      * Use a local or remote target / sitemap file in either 'xml' or 'txt' format.
-     *
-     * @var string
      */
-    public $targetFile;
+    public string $targetFile;
 
     /**
      * Number of seconds for request timeout.
-     *
-     * @var float
      */
-    public $timeout = self::TIMEOUT_DEFAULT;
+    public float $timeout = self::TIMEOUT_DEFAULT;
 
     /**
      * How often to update current statistics in the UserInterface.
-     *
-     * @var float
      */
-    public $timerUI = self::TIMER_UI_DEFAULT;
+    public float $timerUI = self::TIMER_UI_DEFAULT;
 
     /**
-     * @var array
+     * @var array<int, string>
      */
-    private static $allowedOutputModes = [
+    private static array $allowedOutputModes = [
         self::OUTPUT_MODE_COUNT,
         self::OUTPUT_MODE_SAVE,
     ];
 
     /**
-     * @var array
+     * @var array<int, string>
      */
-    private static $allowedRequestTypes = [
+    private static array $allowedRequestTypes = [
         self::REQUEST_TYPE_GET,
         self::REQUEST_TYPE_HEAD,
     ];
 
     /**
-     * @var array
+     * @var array<int, string>
      */
-    private static $allowedTargetTypes = [
+    private static array $allowedTargetTypes = [
         self::TARGET_TYPE_XML,
         self::TARGET_TYPE_TXT,
     ];
