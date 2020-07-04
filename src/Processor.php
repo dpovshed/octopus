@@ -19,6 +19,7 @@ use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
 use React\Stream\ReadableResourceStream;
 use React\Stream\ReadableStreamInterface;
+use RuntimeException;
 use Teapot\StatusCode\Http;
 
 /**
@@ -293,6 +294,11 @@ class Processor
 
         if ($errorOrException instanceof ResponseException && $errorOrException->getCode() >= 300) {
             return (string) $errorOrException->getCode(); // Regular HTTP error code.
+        }
+
+        // This could help to distinguish UnexpectedValueException, InvalidArgumentException, etc.
+        if ($errorOrException instanceof RuntimeException) {
+            return get_class($errorOrException);
         }
 
         return self::ERROR_TYPE_GENERAL;
