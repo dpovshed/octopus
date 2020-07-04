@@ -209,9 +209,6 @@ class Config
         if (!\in_array($this->requestType, self::$allowedRequestTypes, true)) {
             throw new InvalidArgumentException('Invalid configuration value detected: use an allowed RequestType: '.\print_r(self::$allowedRequestTypes, true));
         }
-        if (!\is_string($this->targetFile)) {
-            throw new InvalidArgumentException('Invalid target file used, please provide a proper path or URL: '.\print_r($this->targetFile, true));
-        }
         if (!\in_array($this->targetType, self::$allowedTargetTypes, true)) {
             throw new InvalidArgumentException('Invalid configuration value detected: use an allowed TargetType: '.\print_r(self::$allowedTargetTypes, true));
         }

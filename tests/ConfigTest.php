@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 class ConfigTest extends TestCase
 {
-    public function testValidationThrowsExceptionIfUnsupportedOutputModeIsUsed()
+    public function testValidationThrowsExceptionIfUnsupportedOutputModeIsUsed(): void
     {
         $config = new Config();
         $config->outputMode = 'someOutputModeThatIsNotSupported';
@@ -19,7 +19,7 @@ class ConfigTest extends TestCase
         $config->validate();
     }
 
-    public function testValidationThrowsExceptionIfUnsupportedRequestTypeIsUsed()
+    public function testValidationThrowsExceptionIfUnsupportedRequestTypeIsUsed(): void
     {
         $config = new Config();
         $config->requestType = 'someRequestTypeThatIsNotSupported';
@@ -29,17 +29,7 @@ class ConfigTest extends TestCase
         $config->validate();
     }
 
-    public function testValidationThrowsExceptionIfUnsupportedTargetPathIsUsed()
-    {
-        $config = new Config();
-        $config->targetFile = false;
-
-        $this->expectException(\InvalidArgumentException::class);
-
-        $config->validate();
-    }
-
-    public function testValidationThrowsExceptionIfUnsupportedTargetTypeIsUsed()
+    public function testValidationThrowsExceptionIfUnsupportedTargetTypeIsUsed(): void
     {
         $config = new Config();
         $config->targetType = 'someTargetTypeThatIsNotSupported';
@@ -49,7 +39,7 @@ class ConfigTest extends TestCase
         $config->validate();
     }
 
-    public function testValidationThrowsExceptionIfBonusRespawnIsTooHigh()
+    public function testValidationThrowsExceptionIfBonusRespawnIsTooHigh(): void
     {
         $config = new Config();
         $config->bonusRespawn = 100;
@@ -59,7 +49,7 @@ class ConfigTest extends TestCase
         $config->validate();
     }
 
-    public function testValidationThrowsExceptionIfConcurrencyIsBelowOne()
+    public function testValidationThrowsExceptionIfConcurrencyIsBelowOne(): void
     {
         $config = new Config();
         $config->concurrency = 0;
@@ -69,7 +59,7 @@ class ConfigTest extends TestCase
         $config->validate();
     }
 
-    public function testValidationThrowsExceptionIfTimeoutIsTooLow()
+    public function testValidationThrowsExceptionIfTimeoutIsTooLow(): void
     {
         $config = new Config();
         $config->timeout = 0.1;
