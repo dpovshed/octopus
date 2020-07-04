@@ -298,7 +298,7 @@ class Processor
 
         // This could help to distinguish UnexpectedValueException, InvalidArgumentException, etc.
         if ($errorOrException instanceof RuntimeException) {
-            return get_class($errorOrException);
+            return \get_class($errorOrException);
         }
 
         return self::ERROR_TYPE_GENERAL;
