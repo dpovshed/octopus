@@ -18,3 +18,6 @@ jobs:
 
     - name: Run PHP Static Analysis
       run: composer phpstan
+
+    - name: Run PHP Unit Tests
+      run: composer phpunit
