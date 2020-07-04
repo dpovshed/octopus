@@ -16,6 +16,8 @@ use React\Stream\WritableStreamInterface;
  */
 class NullTargetManager extends EventEmitter implements ReadableStreamInterface, TargetManager
 {
+    private ?ReadableStreamInterface $input;
+
     /**
      * @var LoggerInterface
      */
@@ -23,6 +25,7 @@ class NullTargetManager extends EventEmitter implements ReadableStreamInterface,
 
     public function __construct(ReadableStreamInterface $input = null, LoggerInterface $logger = null)
     {
+        $this->input = $input;
         $this->logger = $logger ?? new NullLogger();
     }
 
@@ -61,5 +64,10 @@ class NullTargetManager extends EventEmitter implements ReadableStreamInterface,
         $this->logger->debug(\sprintf('received "%s" request', __FUNCTION__));
 
         return $destination;
+    }
+
+    public function addUrl(string $url): void
+    {
+        $this->logger->debug(\sprintf('adding URL "%s"', $url));
     }
 }

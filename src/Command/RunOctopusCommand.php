@@ -17,6 +17,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Logger\ConsoleLogger;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class RunOctopusCommand extends Command
@@ -76,30 +77,11 @@ class RunOctopusCommand extends Command
      */
     private const DATE_FORMAT = DateTime::W3C;
 
-    /**
-     * @var DateTime
-     */
-    private $crawlingStartedDateTime;
-
-    /**
-     * @var DateTime
-     */
-    private $crawlingEndedDateTime;
-
-    /**
-     * @var InputInterface
-     */
-    private $input;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * @var OutputInterface
-     */
-    private $output;
+    private DateTime $crawlingStartedDateTime;
+    private DateTime $crawlingEndedDateTime;
+    private InputInterface $input;
+    private LoggerInterface $logger;
+    private ConsoleOutputInterface $output;
 
     public function setLogger(LoggerInterface $logger): void
     {
@@ -108,33 +90,33 @@ class RunOctopusCommand extends Command
 
     protected function configure(): void
     {
-        $this
-            ->setName('octopus:run')
-            ->setDescription('Run the Octopus Sitemap Crawler.')
-            ->addArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?')
-            ->addOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT, null, InputOption::VALUE_OPTIONAL, 'A comma separated list of the additional response headers to keep track of / count during crawling')
-            ->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently. Defaults to '.Config::CONCURRENCY_DEFAULT)
-            ->addOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS, null, InputOption::VALUE_OPTIONAL, 'Should the crawler follow HTTP redirects? Defaults to '.(Config::FOLLOW_HTTP_REDIRECTS_DEFAULT ? 'true' : 'false'))
-            ->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to '.Config::REQUEST_HEADER_USER_AGENT_DEFAULT)
-            ->addOption(self::COMMAND_OPTION_PRESENTER, null, InputOption::VALUE_OPTIONAL, 'The type of Presenter to display the Results, defaults to '.Config::PRESENTER_DEFAULT)
-            ->addOption(self::COMMAND_OPTION_REQUEST_TYPE, null, InputOption::VALUE_OPTIONAL, 'The type of HTTP request, HEAD put lesser load to server while GET loads whole page. Defaults to '.Config::REQUEST_TYPE_DEFAULT)
-            ->addOption(self::COMMAND_OPTION_TARGET_TYPE, null, InputOption::VALUE_OPTIONAL, 'List of URLs to parse could be provided as sitemap or plain text. Defaults to '.Config::TARGET_TYPE_DEFAULT)
-            ->addOption(self::COMMAND_OPTION_TIMEOUT, null, InputOption::VALUE_OPTIONAL, 'Timeout for a request, in seconds. Defaults to '.Config::TIMEOUT_DEFAULT)
-            ->addOption(self::COMMAND_OPTION_TIMER_UI, null, InputOption::VALUE_OPTIONAL, 'How often to update current statistics in the UserInterface. Defaults to '.Config::TIMER_UI_DEFAULT)
-            ->setHelp(
-                \sprintf(
-                    'Usage:
+        $this->setName('octopus:run');
+        $this->setDescription('Run the Octopus Sitemap Crawler.');
+        $this->addArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE, InputArgument::REQUIRED, 'What is the location of the sitemap you want to crawl?');
+        $this->addOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT, null, InputOption::VALUE_OPTIONAL, 'A comma separated list of the additional response headers to keep track of / count during crawling');
+        $this->addOption(self::COMMAND_OPTION_CONCURRENCY, null, InputOption::VALUE_OPTIONAL, 'The amount of connections used concurrently. Defaults to '.Config::CONCURRENCY_DEFAULT);
+        $this->addOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS, null, InputOption::VALUE_OPTIONAL, 'Should the crawler follow HTTP redirects? Defaults to '.(Config::FOLLOW_HTTP_REDIRECTS_DEFAULT ? 'true' : 'false')); // @phpstan-ignore-line
+        $this->addOption(self::COMMAND_OPTION_USER_AGENT, null, InputOption::VALUE_OPTIONAL, 'The UserAgent to use when issuing requests, defaults to '.Config::REQUEST_HEADER_USER_AGENT_DEFAULT);
+        $this->addOption(self::COMMAND_OPTION_PRESENTER, null, InputOption::VALUE_OPTIONAL, 'The type of Presenter to display the Results, defaults to '.Config::PRESENTER_DEFAULT);
+        $this->addOption(self::COMMAND_OPTION_REQUEST_TYPE, null, InputOption::VALUE_OPTIONAL, 'The type of HTTP request, HEAD put lesser load to server while GET loads whole page. Defaults to '.Config::REQUEST_TYPE_DEFAULT);
+        $this->addOption(self::COMMAND_OPTION_TARGET_TYPE, null, InputOption::VALUE_OPTIONAL, 'List of URLs to parse could be provided as sitemap or plain text. Defaults to '.Config::TARGET_TYPE_DEFAULT);
+        $this->addOption(self::COMMAND_OPTION_TIMEOUT, null, InputOption::VALUE_OPTIONAL, 'Timeout for a request, in seconds. Defaults to '.Config::TIMEOUT_DEFAULT);
+        $this->addOption(self::COMMAND_OPTION_TIMER_UI, null, InputOption::VALUE_OPTIONAL, 'How often to update current statistics in the UserInterface. Defaults to '.Config::TIMER_UI_DEFAULT);
+        $this->setHelp(
+            \sprintf(
+                'Usage:
 <info> - php application.php %1$s http://www.domain.ext/sitemap.xml</info>
 using a specific concurrency:
 <info> - php application.php %1$s http://www.domain.ext/sitemap.xml --%2$s 15</info>',
-                    $this->getName(),
-                    self::COMMAND_OPTION_CONCURRENCY
-                )
-            );
+                $this->getName(),
+                self::COMMAND_OPTION_CONCURRENCY
+            )
+        );
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        \assert($output instanceof ConsoleOutputInterface);
         $this->input = $input;
         $this->output = $output;
         $this->crawlingStartedDateTime = new DateTime();
@@ -151,11 +133,13 @@ using a specific concurrency:
         if ($config->outputBroken && \count($processor->result->getBrokenUrls()) > 0) {
             $this->outputBrokenUrls($processor, $config->outputDestination);
         }
+
+        return 0;
     }
 
     private function getLogger(): LoggerInterface
     {
-        return $this->logger ?: $this->logger = new ConsoleLogger($this->output);
+        return $this->logger ??= new ConsoleLogger($this->output);
     }
 
     private function determineConfiguration(): Config

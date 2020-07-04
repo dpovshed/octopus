@@ -50,7 +50,7 @@ use Octopus\Processor;
 
 $config = new Config();
 $config->concurrency = 2;
-$config->targetFile = $sitemapUrl;
+$config->targetFile = 'https://www.domain.ext/sitemap.xml';
 $config->additionalResponseHeadersToCount = array(
     'CF-Cache-Status', //Useful to check CloudFlare edge server cache status
 );

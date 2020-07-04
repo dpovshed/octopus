@@ -7,20 +7,16 @@ namespace Octopus\Presenter;
 use Octopus\Presenter;
 use Octopus\Result;
 use Symfony\Component\Console\Helper\Table;
-use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 
 class TablePresenter implements Presenter
 {
-    /**
-     * @var ConsoleOutput
-     */
-    private $output;
+    private ConsoleOutputInterface $output;
 
     /**
      * @var Table[]
      */
-    private $tables = [];
+    private array $tables = [];
 
     public function __construct(ConsoleOutputInterface $output)
     {
@@ -49,15 +45,10 @@ class TablePresenter implements Presenter
 
     private function getTable(array $tableHeaders): Table
     {
-        $table = new Table($this->getOutput()->section());
+        $table = new Table($this->output->section());
         $table->setHeaders($tableHeaders);
         $table->render(); //Render once, then append rows to gradually populate the table
 
         return $table;
-    }
-
-    private function getOutput(): ConsoleOutput
-    {
-        return $this->output;
     }
 }

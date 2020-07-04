@@ -19,4 +19,6 @@ interface TargetManager extends EventEmitterInterface
     public function pipe(WritableStreamInterface $destination, array $options = []): WritableStreamInterface;
 
     public function getNumberOfUrls(): int;
+
+    public function addUrl(string $url): void;
 }
