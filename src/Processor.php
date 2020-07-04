@@ -14,6 +14,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
+use React\Promise\ExtendedPromiseInterface;
 use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
 use React\Stream\ReadableResourceStream;
@@ -37,20 +38,9 @@ class Processor
      */
     private const ERROR_TYPE_TIMEOUT = 'timeout';
 
-    /**
-     * @var Config
-     */
-    public $config;
-
-    /**
-     * @var Result
-     */
-    public $result;
-
-    /**
-     * @var bool
-     */
-    private $saveEnabled;
+    public Config$config;
+    public Result $result;
+    private bool $saveEnabled;
 
     /**
      * to use with configuration elements.
@@ -59,10 +49,7 @@ class Processor
      */
     private $savePath;
 
-    /**
-     * @var array
-     */
-    private $httpRedirectionResponseCodes = [
+    private array $httpRedirectionResponseCodes = [
         Http::MOVED_PERMANENTLY,
         Http::FOUND,
         Http::SEE_OTHER,
@@ -70,40 +57,13 @@ class Processor
         Http::PERMANENT_REDIRECT,
     ];
 
-    /**
-     * @var Browser
-     */
-    private $browser;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * @var LoopInterface
-     */
-    private $loop;
-
-    /**
-     * @var TargetManager
-     */
-    private $targetManager;
-
-    /**
-     * @var Transformer
-     */
-    private $transformer;
-
-    /**
-     * @var bool
-     */
-    private $followRedirects;
-
-    /**
-     * @var Presenter
-     */
-    private $presenter;
+    private Browser $browser;
+    private LoggerInterface $logger;
+    private LoopInterface $loop;
+    private TargetManager$targetManager;
+    private Transformer $transformer;
+    private bool $followRedirects = false;
+    private Presenter $presenter;
 
     public function __construct(Config $config, LoggerInterface $logger = null)
     {
@@ -157,7 +117,7 @@ class Processor
 
     private function getPresenter(): Presenter
     {
-        return $this->presenter ?: $this->presenter = $this->determinePresenter();
+        return $this->presenter ??= $this->determinePresenter();
     }
 
     private function determinePresenter(): Presenter
@@ -175,12 +135,12 @@ class Processor
 
     private function getLoop(): LoopInterface
     {
-        return $this->loop ?: $this->loop = EventLoopFactory::create();
+        return $this->loop ??= EventLoopFactory::create();
     }
 
     private function getTargetManager(): TargetManager
     {
-        return $this->targetManager ?: $this->targetManager = TargetManagerFactory::getInstance($this->getStream(), $this->logger);
+        return $this->targetManager ??= TargetManagerFactory::getInstance($this->getStream(), $this->logger);
     }
 
     private function getStream(): ?ReadableStreamInterface
@@ -202,7 +162,7 @@ class Processor
 
     private function getTransformer(): Transformer
     {
-        return $this->transformer ?: $this->transformer = $this->instantiateNewTransformer();
+        return $this->transformer ??= $this->instantiateNewTransformer();
     }
 
     private function instantiateNewTransformer(): Transformer
@@ -224,9 +184,13 @@ class Processor
     private function getLoadUrlUsingBrowserCallback(): callable
     {
         return function (string $url): PromiseInterface {
-            return $this->loadUrlWithBrowser($url)
-                ->then($this->getOnFulfilledCallback($url))
-                ->otherwise($this->getOnRejectedCallback($url));
+            $promise = $this->loadUrlWithBrowser($url);
+            $promise = $promise->then($this->getOnFulfilledCallback($url));
+            if ($promise instanceof ExtendedPromiseInterface) {
+                $promise = $promise->otherwise($this->getOnRejectedCallback($url));
+            }
+
+            return $promise;
         };
     }
 
@@ -239,10 +203,16 @@ class Processor
 
     private function getBrowser(): Browser
     {
-        return $this->browser ?: $this->browser = (new Browser($this->getLoop()))->withOptions([
-            'timeout' => $this->config->timeout,
-            'followRedirects' => false, // We are using own mechanism of following redirects to correctly count these.
-        ]);
+        return $this->browser ??= $this->assembleBrowser();
+    }
+
+    private function assembleBrowser(): Browser
+    {
+        $browser = new Browser($this->getLoop());
+        $browser = $browser->withTimeout($this->config->timeout);
+        $browser = $browser->withFollowRedirects(false); // We are using own mechanism of following redirects to correctly count these.
+
+        return $browser;
     }
 
     private function getOnFulfilledCallback(string $url): callable
@@ -268,6 +238,7 @@ class Processor
             if ($this->followRedirects && $this->isRedirectCode($httpResponseCode)) {
                 $newLocation = $this->getLocationFromHeaders($response->getHeaders());
                 $this->result->addRedirectedUrl($url, $newLocation);
+
                 $this->getTargetManager()->addUrl($newLocation);
 
                 return;
