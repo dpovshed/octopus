@@ -110,6 +110,11 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     public function addUrl(string $url): void
     {
+        if(filter_var($url, FILTER_VALIDATE_URL) === false){
+            $this->logger->debug('skip invalid URL: '.$url);
+            return;
+        }
+
         ++$this->numberOfUrls;
         $this->logger->debug('emitting URL: '.$url);
         $this->emit('data', [$url]);
