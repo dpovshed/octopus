@@ -17,7 +17,7 @@ jobs:
       run: composer install --prefer-dist --no-progress --no-suggest
 
     - name: Run PHP Static Analysis
-      run: composer phpstan
+      run: make phpstan
 
     - name: Run PHP Unit Tests
-      run: composer phpunit
+      run: make phpunit
