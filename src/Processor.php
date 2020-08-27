@@ -41,14 +41,6 @@ class Processor
 
     public Config$config;
     public Result $result;
-    private bool $saveEnabled;
-
-    /**
-     * to use with configuration elements.
-     *
-     * @var string
-     */
-    private $savePath;
 
     private array $httpRedirectionResponseCodes = [
         Http::MOVED_PERMANENTLY,
@@ -74,12 +66,8 @@ class Processor
         $this->result = new Result($config);
         $this->logger = $logger ?? new NullLogger();
 
-        $this->saveEnabled = $config->outputMode === Config::OUTPUT_MODE_SAVE;
-        if ($this->saveEnabled || $config->outputBroken) {
-            $this->savePath = $config->outputDestination.\DIRECTORY_SEPARATOR;
-            if (!@\mkdir($this->savePath) && !\is_dir($this->savePath)) {
-                throw new Exception('Cannot create output directory: '.$this->savePath);
-            }
+        if ($this->isOutputDestinationRequired()) {
+            $this->touchOutputDestination();
         }
 
         if (\is_array($config->additionalResponseHeadersToCount)) {
@@ -111,27 +99,22 @@ class Processor
         $this->getLoop()->run();
     }
 
-    private function getNumberOfRemainingUrlsToProcess(): int
+    private function isOutputDestinationRequired(): bool
     {
-        return $this->getTargetManager()->getNumberOfUrls() - $this->result->countFinishedUrls();
+        return $this->isSaveEnabled() || $this->config->outputBroken;
     }
 
-    private function getPresenter(): Presenter
+    private function isSaveEnabled(): bool
     {
-        return $this->presenter ??= $this->determinePresenter();
+        return $this->config->outputMode === Config::OUTPUT_MODE_SAVE;
     }
 
-    private function determinePresenter(): Presenter
+    private function touchOutputDestination(): void
     {
-        if ($this->config->presenter instanceof Presenter) {
-            return $this->config->presenter;
+        $savePath = $this->config->outputDestination.\DIRECTORY_SEPARATOR;
+        if (!@\mkdir($savePath) && !\is_dir($savePath)) {
+            throw new Exception('Cannot create output directory: '.$savePath);
         }
-
-        $presenterClass = $this->config->presenter;
-
-        \assert(\class_exists($presenterClass), "Indicated PresenterClass '$presenterClass' does not exist.");
-
-        return new $presenterClass($this->result);
     }
 
     private function getLoop(): LoopInterface
@@ -159,6 +142,29 @@ class Processor
     private function isCompleted(): bool
     {
         return $this->getNumberOfRemainingUrlsToProcess() === 0;
+    }
+
+    private function getNumberOfRemainingUrlsToProcess(): int
+    {
+        return $this->getTargetManager()->getNumberOfUrls() - $this->result->countFinishedUrls();
+    }
+
+    private function getPresenter(): Presenter
+    {
+        return $this->presenter ??= $this->determinePresenter();
+    }
+
+    private function determinePresenter(): Presenter
+    {
+        if ($this->config->presenter instanceof Presenter) {
+            return $this->config->presenter;
+        }
+
+        $presenterClass = $this->config->presenter;
+
+        \assert(\class_exists($presenterClass), "Indicated PresenterClass '$presenterClass' does not exist.");
+
+        return new $presenterClass($this->result);
     }
 
     private function getTransformer(): Transformer
@@ -278,7 +284,7 @@ class Processor
             $this->result->done($url);
             $this->result->addBrokenUrl($url, $errorType);
 
-            $this->logger->error('loading {url} resulted in an error: {errorType}, {errorMessage}', [
+            $this->logger->error('loading URL "{url}" resulted in  error "{errorType}: {errorMessage}"', [
                 'url' => $url,
                 'errorType' => $errorType,
                 'errorMessage' => $this->getErrorMessage($errorOrException),
