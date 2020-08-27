@@ -252,13 +252,13 @@ using a specific concurrency:
     {
         $content = [];
         foreach ($processor->result->getBrokenUrls() as $url => $reason) {
-            $label = \sprintf('Failed %s: %s', $reason, $url);
-            $this->getLogger()->debug($label);
+            $label = \sprintf('%s: %s', $reason, $url);
+            $this->getLogger()->debug(\sprintf('broken URL: %s', $label));
             $content[] = $label;
         }
 
         \file_put_contents(
-            $outputDestination.'/broken.txt',
+            $outputDestination.\DIRECTORY_SEPARATOR.'broken.txt',
             \implode(PHP_EOL, $content)
         );
     }
