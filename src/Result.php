@@ -75,15 +75,25 @@ class Result
         $this->redirectedUrls[$url] = $newLocation;
     }
 
+    /**
+     * @param int|string $statusCode
+     */
     public function addBrokenUrl(string $url, $statusCode): void
     {
+        \assert(\is_int($statusCode) || \is_string($statusCode));
+
         $this->brokenUrls[$url] = $statusCode;
 
         $this->addStatusCode($statusCode);
     }
 
+    /**
+     * @param int|string $statusCode
+     */
     public function addStatusCode($statusCode): void
     {
+        \assert(\is_int($statusCode) || \is_string($statusCode));
+
         $this->bumpStatusCode($statusCode);
     }
 
@@ -154,6 +164,9 @@ class Result
         return \sprintf('%5.1f MB', \memory_get_usage(true) / 1048576);
     }
 
+    /**
+     * @param int|string $statusCode
+     */
     private function bumpStatusCode($statusCode): void
     {
         $this->statusCodes[$statusCode] = $this->statusCodes[$statusCode] ?? 0;
