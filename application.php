@@ -7,6 +7,8 @@ require __DIR__.'/vendor/autoload.php';
 use Octopus\Command\RunOctopusCommand;
 use Symfony\Component\Console\Application;
 
+$command = new RunOctopusCommand();
 $application = new Application();
-$application->add(new RunOctopusCommand());
+$application->add($command);
+$application->setDefaultCommand($command->getName(), true);
 $application->run();

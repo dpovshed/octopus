@@ -8,37 +8,37 @@ Small PHP tool to crawl collections of URLs in a Sitemap using the [PHPReact](ht
 Crawl the URLs in a Sitemap with verbose logging (`-vvv`).
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml -vvv
+php application.php http://www.domain.ext/sitemap.xml -vvv
 ```
 
 Using 15 concurrent connections instead of the default 5 concurrent connections:
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml --concurrency 15 -vvv
+php application.php http://www.domain.ext/sitemap.xml --concurrency 15 -vvv
 ```
 
 Use a `HTTP GET` request instead of the default `HTTP HEAD`. Note that `HTTP HEAD` requests involve less data transfer since no body is involved:
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml --requestType GET -vvv
+php application.php http://www.domain.ext/sitemap.xml --requestType GET -vvv
 ```
 
 Use a timeout of 3 seconds instead of the default 10 seconds:
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml --timeout 3 -vvv
+php application.php http://www.domain.ext/sitemap.xml --timeout 3 -vvv
 ```
 
 Use a specific UserAgent instead of the default `Octopus/1.0`, for example, to simulate a search engine crawling a sitemap:
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml --userAgent 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' -vvv
+php application.php http://www.domain.ext/sitemap.xml --userAgent 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' -vvv
 ```
 
 Use the `TablePresenter` to display intermediate results instead of the default `EchoPresenter`:
 
 ```bash
-php application.php octopus:run http://www.domain.ext/sitemap.xml --presenter Octopus\\Presenter\\TablePresenter -vvv
+php application.php http://www.domain.ext/sitemap.xml --presenter Octopus\\Presenter\\TablePresenter -vvv
 ```
 
 ## Usage from your own application
@@ -67,7 +67,7 @@ $this->logger->info('Failed to load #URLs: ' . count($processor->result->getBrok
 ```
 
 ## Limitations
-Currently Octopus is mainly an experimental / educational tool. Advanced use cases in HTTP response handling might not be supported.
+Currently, Octopus is mainly an experimental / educational tool. Advanced use cases in HTTP response handling might not be supported.
 
 ## Tests
 
@@ -80,11 +80,5 @@ $ composer install
 To run the test suite, go to the project root and run:
 
 ```bash
-$ php vendor/bin/phpunit
-```
-
-or as a shortcut:
-
-```bash
-$ composer phpunit
+$ make test
 ```

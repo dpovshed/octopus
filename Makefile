@@ -9,3 +9,5 @@ phpstan:
 
 phpunit:
 	vendor/bin/phpunit
+
+test: phpstan phpunit
