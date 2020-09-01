@@ -225,6 +225,7 @@ class Processor
     private function getOnFulfilledCallback(string $url): callable
     {
         return function (ResponseInterface $response) use ($url): void {
+            $this->logger->debug('loading URL "{url}" resulted in headers: "{headers}"', ['url' => $url, 'headers' => \var_export($response->getHeaders(), true)]);
             $this->result->countAdditionalHeaders($response->getHeaders());
 
             /*
@@ -284,7 +285,7 @@ class Processor
             $this->result->done($url);
             $this->result->addBrokenUrl($url, $errorType);
 
-            $this->logger->error('loading URL "{url}" resulted in  error "{errorType}: {errorMessage}"', [
+            $this->logger->error('loading URL "{url}" resulted in error "{errorType}: {errorMessage}"', [
                 'url' => $url,
                 'errorType' => $errorType,
                 'errorMessage' => $this->getErrorMessage($errorOrException),
