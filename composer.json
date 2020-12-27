@@ -5,7 +5,7 @@
   "prefer-stable": true,
   "minimum-stability": "dev",
   "require": {
-    "php": "^7.4",
+    "php": "^7.4 || ^8.0",
     "ext-simplexml": "*",
     "clue/buzz-react": "^2.9",
     "clue/reactphp-flux": "^1.1",
