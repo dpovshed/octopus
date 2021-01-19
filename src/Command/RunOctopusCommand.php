@@ -258,7 +258,7 @@ using a specific concurrency:
 
         \file_put_contents(
             $outputDestination.\DIRECTORY_SEPARATOR.'broken.txt',
-            \implode(PHP_EOL, $content)
+            \implode(\PHP_EOL, $content)
         );
     }
 }

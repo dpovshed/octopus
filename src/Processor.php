@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Octopus;
 
-use Clue\React\Buzz\Browser;
-use Clue\React\Buzz\Message\ResponseException;
 use Clue\React\Flux\Transformer;
 use Exception;
 use Octopus\TargetManager\TargetManagerFactory;
@@ -14,6 +12,8 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
+use React\Http\Browser;
+use React\Http\Message\ResponseException;
 use React\Promise\ExtendedPromiseInterface;
 use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
