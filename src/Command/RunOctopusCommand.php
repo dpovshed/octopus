@@ -105,10 +105,9 @@ class RunOctopusCommand extends Command
         $this->setHelp(
             \sprintf(
                 'Usage:
-<info> - php application.php %1$s http://www.domain.ext/sitemap.xml</info>
+<info> - php application.php examples/sitemap-wiki.xml</info>
 using a specific concurrency:
-<info> - php application.php %1$s http://www.domain.ext/sitemap.xml --%2$s 15</info>',
-                $this->getName(),
+<info> - php application.php http://www.domain.ext/sitemap.xml --%s 15</info>',
                 self::COMMAND_OPTION_CONCURRENCY
             )
         );
