@@ -6,53 +6,43 @@ namespace Octopus;
 
 class Result
 {
-    /**
-     * @var Config
-     */
-    public $config;
+    public Config $config;
 
     /**
-     * @var array
+     * @var array<int, string>
      */
-    private $additionalResponseHeadersToCount = [];
+    private array $additionalResponseHeadersToCount = [];
 
     /**
      * URLs that could not be loaded.
      *
-     * @var array
+     * @var array<string, int|string>
      */
-    private $brokenUrls = [];
+    private array $brokenUrls = [];
 
     /**
-     * @var array
+     * @var array<int, string>
      */
-    private $finishedUrls = [];
+    private array $finishedUrls = [];
 
     /**
      * URLs that were redirected to another location.
      *
-     * @var array
+     * @var array<string, string>
      */
-    private $redirectedUrls = [];
+    private array $redirectedUrls = [];
 
     /**
      * Timestamp to track execution time.
-     *
-     * @var float
      */
-    private $started;
+    private float $started;
 
-    /**
-     * @var array
-     */
-    private $statusCodes = [];
+    private array $statusCodes = [];
 
     /**
      * Total amount of processed data.
-     *
-     * @var int
      */
-    private $totalData = 0;
+    private int $totalData = 0;
 
     public function __construct(Config $config)
     {
@@ -60,6 +50,9 @@ class Result
         $this->started = \microtime(true);
     }
 
+    /**
+     * @param array<int, string> $additionalResponseHeadersToCount
+     */
     public function setAdditionalResponseHeadersToCount(array $additionalResponseHeadersToCount): void
     {
         $this->additionalResponseHeadersToCount = $additionalResponseHeadersToCount;

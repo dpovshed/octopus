@@ -3,9 +3,11 @@
 namespace Octopus\TargetManager;
 
 use Evenement\EventEmitter;
-use Octopus\TargetManager;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use React\Promise\PromiseInterface;
 use React\Stream\ReadableStreamInterface;
 use React\Stream\Util;
 use React\Stream\WritableStreamInterface;
@@ -14,7 +16,7 @@ use SimpleXMLElement;
 /**
  * The TargetManager reads URLs from a plain stream and emits them.
  */
-class StreamTargetManager extends EventEmitter implements ReadableStreamInterface, TargetManager
+class StreamTargetManager extends EventEmitter implements ReadableStreamInterface
 {
     /**
      * @see https://www.sitemaps.org/protocol.html
@@ -44,42 +46,30 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
      */
     private const XML_SITEMAP_ROOT_ELEMENT = 'urlset';
 
-    /**
-     * @var string
-     */
-    private $buffer = '';
+    private string $buffer = '';
 
-    /**
-     * @var bool
-     */
-    private $closed = false;
+    private bool $closed = false;
 
-    /**
-     * @var ReadableStreamInterface
-     */
-    private $input;
+    private ReadableStreamInterface $input;
 
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
+    private LoggerInterface $logger;
 
-    /**
-     * @var int
-     */
-    private $numberOfUrls = 0;
+    private int $numberOfUrls = 0;
 
     /**
      * Flag to indicated whether this TargetManager has been initialized: were URLs loaded.
-     *
-     * @var bool
      */
-    private $initialized = false;
+    private bool $initialized = false;
 
-    public function __construct(ReadableStreamInterface $input = null, LoggerInterface $logger = null)
+    public function __construct(PromiseInterface $promise, LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new NullLogger();
-        if ($input) {
+
+        $promise->then(function (ResponseInterface $response) {
+            $input = $response->getBody();
+            \assert($input instanceof StreamInterface);
+            \assert($input instanceof ReadableStreamInterface);
+
             if (!$input->isReadable()) {
                 $this->logger->info('Input is not readable, closing');
 
@@ -90,7 +80,9 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
             }
 
             $this->setInput($input);
-        }
+        }, function (\Exception $exception) {
+            $this->logger->critical((string) $exception);
+        });
     }
 
     public function close(): void
@@ -196,15 +188,15 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     {
         $xmlElement = $this->getSimpleXMLElement($this->buffer);
 
-        if ($xmlElement instanceof SimpleXMLElement) {
-            $this->logger->notice('Instantiated SimpleXMLElement with "{elementCount}" children', ['elementCount' => $xmlElement->count()]);
-
-            $this->processSimpleXMLElement($xmlElement);
-
-            return true;
+        if ($xmlElement === null) {
+            return false;
         }
 
-        return false;
+        $this->logger->notice('Instantiated SimpleXMLElement with "{elementCount}" children', ['elementCount' => $xmlElement->count()]);
+
+        $this->processSimpleXMLElement($xmlElement);
+
+        return true;
     }
 
     private function getSimpleXMLElement(string $data): ?SimpleXMLElement
@@ -241,51 +233,70 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     private function processSitemapIndex(SimpleXMLElement $sitemapIndexElement): void
     {
-        if ($sitemapLocationElements = $this->getSitemapLocationElements($sitemapIndexElement)) {
-            foreach ($sitemapLocationElements as $sitemapLocationElement) {
-                $sitemapUrl = (string) $sitemapLocationElement;
-                $this->processSitemapUrl($sitemapUrl);
-                $this->logger->info('processed '.$sitemapUrl.', #URLs: '.$this->getNumberOfUrls());
-            }
+        $sitemapLocationElements = $this->getSitemapLocationElements($sitemapIndexElement);
+        if ($sitemapLocationElements === null) {
+            return;
         }
+
+        $this->processSitemapLocationElementsContainingSitemapUrls($sitemapLocationElements);
     }
 
     private function getSitemapLocationElements(SimpleXMLElement $xmlElement): ?array
     {
         $xmlElement->registerXPathNamespace('sitemap', self::XML_SITEMAP_NAMESPACE);
-        if ($sitemapLocationElements = $xmlElement->xpath('//sitemap:loc')) {
-            return $sitemapLocationElements;
-        }
+        $sitemapLocationElements = $xmlElement->xpath('//sitemap:loc');
 
-        return null;
+        return \is_array($sitemapLocationElements) ? $sitemapLocationElements : null;
+    }
+
+    private function processSitemapLocationElementsContainingSitemapUrls(array $sitemapLocationElements): void
+    {
+        foreach ($sitemapLocationElements as $sitemapLocationElement) {
+            $sitemapUrl = (string) $sitemapLocationElement;
+            $this->processSitemapUrl($sitemapUrl);
+            $this->logger->info('processed '.$sitemapUrl.', #URLs: '.$this->getNumberOfUrls());
+        }
     }
 
     private function processSitemapUrl(string $sitemapUrl): void
     {
-        if ($data = $this->loadExternalData($sitemapUrl)) {
-            if ($sitemapElement = $this->getSimpleXMLElement($data)) {
-                $this->processSitemapElement($sitemapElement);
-            }
+        $data = $this->loadExternalData($sitemapUrl);
+        if ($data === null) {
+            return;
         }
+        $sitemapElement = $this->getSimpleXMLElement($data);
+        if ($sitemapElement === null) {
+            return;
+        }
+
+        $this->processSitemapElement($sitemapElement);
     }
 
     private function loadExternalData(string $file): ?string
     {
-        if ($data = @\file_get_contents($file)) {
-            return $data;
-        }
+        $data = \file_get_contents($file);
 
-        return null;
+        return \is_string($data) ? $data : null;
     }
 
     private function processSitemapElement(SimpleXMLElement $sitemapElement): void
     {
-        if ($sitemapLocationElements = $this->getSitemapLocationElements($sitemapElement)) {
-            foreach ($sitemapLocationElements as $sitemapLocationElement) {
-                $sitemapUrl = (string) $sitemapLocationElement;
+        $sitemapLocationElements = $this->getSitemapLocationElements($sitemapElement);
 
-                $this->addUrl($sitemapUrl);
-            }
+        if ($sitemapLocationElements === null) {
+            return;
+        }
+
+        $this->processSitemapLocationElementsContainingUrls($sitemapLocationElements);
+    }
+
+    private function processSitemapLocationElementsContainingUrls(array $sitemapLocationElements): void
+    {
+        $this->logger->info(\sprintf('process %d SitemapLocation elements containing URLs', \count($sitemapLocationElements)));
+        foreach ($sitemapLocationElements as $sitemapLocationElement) {
+            $sitemapUrl = (string) $sitemapLocationElement;
+
+            $this->addUrl($sitemapUrl);
         }
     }
 

@@ -89,6 +89,8 @@ class Config
 
     /**
      * An array of some additional response headers to count.
+     *
+     * @var array<int, string>
      */
     public array $additionalResponseHeadersToCount = [];
 

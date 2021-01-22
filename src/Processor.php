@@ -6,19 +6,18 @@ namespace Octopus;
 
 use Clue\React\Flux\Transformer;
 use Exception;
-use Octopus\TargetManager\TargetManagerFactory;
+use Octopus\TargetManager\StreamTargetManager;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use React\EventLoop\Factory as EventLoopFactory;
 use React\EventLoop\LoopInterface;
+use React\Filesystem\Filesystem;
 use React\Http\Browser;
 use React\Http\Message\ResponseException;
 use React\Promise\ExtendedPromiseInterface;
 use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
-use React\Stream\ReadableResourceStream;
-use React\Stream\ReadableStreamInterface;
 use RuntimeException;
 use Teapot\StatusCode\Http;
 
@@ -53,7 +52,7 @@ class Processor
     private Browser $browser;
     private LoggerInterface $logger;
     private LoopInterface $loop;
-    private TargetManager$targetManager;
+    private StreamTargetManager $targetManager;
     private Transformer $transformer;
     private bool $followRedirects = false;
     private Presenter $presenter;
@@ -122,21 +121,34 @@ class Processor
         return $this->loop ??= EventLoopFactory::create();
     }
 
-    private function getTargetManager(): TargetManager
+    private function getTargetManager(): StreamTargetManager
     {
-        return $this->targetManager ??= TargetManagerFactory::getInstance($this->getStream(), $this->logger);
+        return $this->targetManager ??= new StreamTargetManager($this->getStream(), $this->logger);
     }
 
-    private function getStream(): ?ReadableStreamInterface
+    private function getStream(): PromiseInterface
     {
-        $handle = @\fopen($this->config->targetFile, 'r');
-        if (!$handle) {
-            $this->logger->error(\sprintf('Could not open target file "%s"', $this->config->targetFile));
+        return \filter_var($this->config->targetFile, \FILTER_VALIDATE_URL)
+            ? $this->getStreamForUrl($this->config->targetFile)
+            : $this->getStreamForLocalFile($this->config->targetFile);
+    }
 
-            return null;
-        }
+    private function getStreamForUrl(string $url): PromiseInterface
+    {
+        $this->logger->info('acquire stream for URL '.$url);
+        $browser = new Browser($this->getLoop());
 
-        return new ReadableResourceStream($handle, $this->getLoop());
+        return $browser->requestStreaming('GET', $url);
+    }
+
+    private function getStreamForLocalFile(string $filename): PromiseInterface
+    {
+        $this->logger->info('acquire stream for local file '.$filename);
+
+        $filesystem = Filesystem::create($this->getLoop());
+        $file = $filesystem->file($filename);
+
+        return $file->getContents();
     }
 
     private function isCompleted(): bool
@@ -230,10 +242,10 @@ class Processor
 
             /*
             if ($this->saveEnabled) {
-                $path = $this->savePath.$this->makeFilename($url);
-                if (\file_put_contents($path, $response->getBody(), FILE_APPEND) === false) {
-                    throw new Exception("Cannot write file: $path");
-                }
+            $path = $this->savePath.$this->makeFilename($url);
+            if (\file_put_contents($path, $response->getBody(), FILE_APPEND) === false) {
+            throw new Exception("Cannot write file: $path");
+            }
             }
              */
 
