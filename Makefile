@@ -5,7 +5,7 @@ phpcs-fix:
 	vendor/bin/php-cs-fixer fix --verbose --config .php_cs.php
 
 phpstan:
-	vendor/bin/phpstan analyse --level 5 src
+	vendor/bin/phpstan analyse --level 8 src
 
 phpunit:
 	vendor/bin/phpunit

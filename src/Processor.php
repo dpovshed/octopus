@@ -41,6 +41,9 @@ class Processor
     public Config$config;
     public Result $result;
 
+    /**
+     * @var array<int, int>
+     */
     private array $httpRedirectionResponseCodes = [
         Http::MOVED_PERMANENTLY,
         Http::FOUND,
@@ -69,7 +72,7 @@ class Processor
             $this->touchOutputDestination();
         }
 
-        if (\is_array($config->additionalResponseHeadersToCount)) {
+        if (isset($config->additionalResponseHeadersToCount)) {
             $this->result->setAdditionalResponseHeadersToCount($config->additionalResponseHeadersToCount);
         }
 
@@ -111,7 +114,7 @@ class Processor
     private function touchOutputDestination(): void
     {
         $savePath = $this->config->outputDestination.\DIRECTORY_SEPARATOR;
-        if (!@\mkdir($savePath) && !\is_dir($savePath)) {
+        if (!@mkdir($savePath) && !is_dir($savePath)) {
             throw new Exception('Cannot create output directory: '.$savePath);
         }
     }
@@ -128,7 +131,7 @@ class Processor
 
     private function getStream(): PromiseInterface
     {
-        return \filter_var($this->config->targetFile, \FILTER_VALIDATE_URL)
+        return filter_var($this->config->targetFile, \FILTER_VALIDATE_URL)
             ? $this->getStreamForUrl($this->config->targetFile)
             : $this->getStreamForLocalFile($this->config->targetFile);
     }
@@ -174,7 +177,7 @@ class Processor
 
         $presenterClass = $this->config->presenter;
 
-        \assert(\class_exists($presenterClass), "Indicated PresenterClass '$presenterClass' does not exist.");
+        \assert(class_exists($presenterClass), "Indicated PresenterClass '$presenterClass' does not exist.");
 
         return new $presenterClass($this->result);
     }
@@ -215,7 +218,7 @@ class Processor
 
     private function loadUrlWithBrowser(string $url): PromiseInterface
     {
-        $requestType = \mb_strtolower($this->config->requestType);
+        $requestType = mb_strtolower($this->config->requestType);
 
         return $this->getBrowser()->$requestType($url, $this->config->requestHeaders);
     }
@@ -229,15 +232,14 @@ class Processor
     {
         $browser = new Browser($this->getLoop());
         $browser = $browser->withTimeout($this->config->timeout);
-        $browser = $browser->withFollowRedirects(false); // We are using own mechanism of following redirects to correctly count these.
 
-        return $browser;
+        return $browser->withFollowRedirects(false); // We are using own mechanism of following redirects to correctly count these.
     }
 
     private function getOnFulfilledCallback(string $url): callable
     {
         return function (ResponseInterface $response) use ($url): void {
-            $this->logger->debug('loading URL "{url}" resulted in headers: "{headers}"', ['url' => $url, 'headers' => \var_export($response->getHeaders(), true)]);
+            $this->logger->debug('loading URL "{url}" resulted in headers: "{headers}"', ['url' => $url, 'headers' => var_export($response->getHeaders(), true)]);
             $this->result->countAdditionalHeaders($response->getHeaders());
 
             /*
@@ -249,7 +251,10 @@ class Processor
             }
              */
 
-            $this->result->addProcessedData($response->getBody()->getSize());
+            $size = $response->getBody()->getSize();
+            if (\is_int($size)) {
+                $this->result->addProcessedData($size);
+            }
 
             $httpResponseCode = $response->getStatusCode();
             $this->result->addStatusCode($httpResponseCode);
@@ -285,14 +290,20 @@ class Processor
         return \in_array($httpResponseCode, $this->httpRedirectionResponseCodes, true);
     }
 
+    /**
+     * @param string[][] $headers
+     */
     private function getLocationFromHeaders(array $headers): string
     {
         return $headers['Location'][0];
     }
 
+    /**
+     * Promise v1 and v2 reject with an array of Exceptions here, Promise v3 will use an Exception object instead.
+     */
     private function getOnRejectedCallback(string $url): callable
     {
-        return function ($errorOrException) use ($url): void {
+        return function (array|Exception $errorOrException) use ($url): void {
             $errorType = $this->getErrorType($errorOrException);
             $this->result->done($url);
             $this->result->addBrokenUrl($url, $errorType);
@@ -305,7 +316,10 @@ class Processor
         };
     }
 
-    private function getErrorType($errorOrException): string
+    /**
+     * @param array<int, string>|Exception $errorOrException
+     */
+    private function getErrorType(array|Exception $errorOrException): string
     {
         if ($errorOrException instanceof TimeoutException) {
             return self::ERROR_TYPE_TIMEOUT;
@@ -323,8 +337,11 @@ class Processor
         return self::ERROR_TYPE_GENERAL;
     }
 
-    private function getErrorMessage($errorOrException): string
+    /**
+     * @param array<int, string>|Exception $errorOrException
+     */
+    private function getErrorMessage(array|Exception $errorOrException): string
     {
-        return $errorOrException instanceof Exception ? $errorOrException->getMessage() : \print_r($errorOrException, true);
+        return $errorOrException instanceof Exception ? $errorOrException->getMessage() : print_r($errorOrException, true);
     }
 }

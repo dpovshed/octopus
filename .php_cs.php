@@ -1,6 +1,6 @@
 <?php
 
-$config = \PhpCsFixer\Config::create();
+$config = new \PhpCsFixer\Config();
 $config->setRules([
     '@Symfony' => true,
     '@Symfony:risky' => true,
@@ -8,7 +8,6 @@ $config->setRules([
         'comment_type' => 'all_multiline',
     ],
     'array_syntax' => ['syntax' => 'short'],
-    'is_null' => ['use_yoda_style' => false],
     'mb_str_functions' => true,
     'native_function_invocation' => true,
     'ordered_class_elements' => true,

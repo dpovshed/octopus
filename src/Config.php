@@ -92,7 +92,7 @@ class Config
      *
      * @var array<int, string>
      */
-    public array $additionalResponseHeadersToCount = [];
+    public array $additionalResponseHeadersToCount;
 
     /**
      * Percentage of re-issuing the same request after successful completion, can be used for stress-testing.
@@ -135,6 +135,8 @@ class Config
 
     /**
      * The headers used in the request to fetch a URL.
+     *
+     * @var array<string, string>
      */
     public array $requestHeaders = [
         self::REQUEST_HEADER_USER_AGENT => self::REQUEST_HEADER_USER_AGENT_DEFAULT,
@@ -195,7 +197,7 @@ class Config
 
     public function __construct()
     {
-        $this->outputDestination .= \DIRECTORY_SEPARATOR.\time();
+        $this->outputDestination .= \DIRECTORY_SEPARATOR.time();
     }
 
     /**
@@ -206,13 +208,13 @@ class Config
     public function validate(): void
     {
         if (!\in_array($this->outputMode, self::$allowedOutputModes, true)) {
-            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed OutputMode: '.\print_r(self::$allowedOutputModes, true));
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed OutputMode: '.print_r(self::$allowedOutputModes, true));
         }
         if (!\in_array($this->requestType, self::$allowedRequestTypes, true)) {
-            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed RequestType: '.\print_r(self::$allowedRequestTypes, true));
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed RequestType: '.print_r(self::$allowedRequestTypes, true));
         }
         if (!\in_array($this->targetType, self::$allowedTargetTypes, true)) {
-            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed TargetType: '.\print_r(self::$allowedTargetTypes, true));
+            throw new InvalidArgumentException('Invalid configuration value detected: use an allowed TargetType: '.print_r(self::$allowedTargetTypes, true));
         }
         if ($this->bonusRespawn > 99) {
             throw new InvalidArgumentException('Invalid configuration value detected: bonus respawn should be up to 99');

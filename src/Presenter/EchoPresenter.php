@@ -11,14 +11,14 @@ class EchoPresenter implements Presenter
 {
     public function renderStatistics(Result $result, int $totalNumberOfUrls): void
     {
-        echo \sprintf(
+        echo sprintf(
             " %s %s Queued/running/done: %d/%s/%d. Statistics: %s \r",
             $result->getMemoryUsageLabel(),
             $result->getDurationLabel(),
             $result->getNumberOfRemainingUrlsToProcess($totalNumberOfUrls),
             $result->config->concurrency,
             $result->countFinishedUrls(),
-            \implode(' ', $result->getStatusCodeInformation())
+            implode(' ', $result->getStatusCodeInformation())
         );
     }
 }

@@ -87,7 +87,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     public function close(): void
     {
-        $this->logger->debug(\sprintf('received "%s" request', __FUNCTION__));
+        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
 
         if ($this->closed) {
             return;
@@ -102,7 +102,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     public function addUrl(string $url): void
     {
-        if (\filter_var($url, \FILTER_VALIDATE_URL) === false) {
+        if (filter_var($url, \FILTER_VALIDATE_URL) === false) {
             $this->logger->debug('skip invalid URL: '.$url);
 
             return;
@@ -130,21 +130,24 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     public function pause(): void
     {
-        $this->logger->debug(\sprintf('received "%s" request', __FUNCTION__));
+        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
 
         $this->input->pause();
     }
 
     public function resume(): void
     {
-        $this->logger->debug(\sprintf('received "%s" request', __FUNCTION__));
+        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
 
         $this->input->resume();
     }
 
+    /**
+     * @param array<string, mixed> $options
+     */
     public function pipe(WritableStreamInterface $destination, array $options = []): WritableStreamInterface
     {
-        $this->logger->debug(\sprintf('received "%s" request', __FUNCTION__));
+        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
 
         Util::pipe($this, $destination, $options);
 
@@ -241,6 +244,9 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         $this->processSitemapLocationElementsContainingSitemapUrls($sitemapLocationElements);
     }
 
+    /**
+     * @return SimpleXMLElement[]|null
+     */
     private function getSitemapLocationElements(SimpleXMLElement $xmlElement): ?array
     {
         $xmlElement->registerXPathNamespace('sitemap', self::XML_SITEMAP_NAMESPACE);
@@ -249,6 +255,9 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         return \is_array($sitemapLocationElements) ? $sitemapLocationElements : null;
     }
 
+    /**
+     * @param SimpleXMLElement[] $sitemapLocationElements
+     */
     private function processSitemapLocationElementsContainingSitemapUrls(array $sitemapLocationElements): void
     {
         foreach ($sitemapLocationElements as $sitemapLocationElement) {
@@ -274,7 +283,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     private function loadExternalData(string $file): ?string
     {
-        $data = \file_get_contents($file);
+        $data = file_get_contents($file);
 
         return \is_string($data) ? $data : null;
     }
@@ -290,9 +299,12 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         $this->processSitemapLocationElementsContainingUrls($sitemapLocationElements);
     }
 
+    /**
+     * @param SimpleXMLElement[] $sitemapLocationElements
+     */
     private function processSitemapLocationElementsContainingUrls(array $sitemapLocationElements): void
     {
-        $this->logger->info(\sprintf('process %d SitemapLocation elements containing URLs', \count($sitemapLocationElements)));
+        $this->logger->info(sprintf('process %d SitemapLocation elements containing URLs', \count($sitemapLocationElements)));
         foreach ($sitemapLocationElements as $sitemapLocationElement) {
             $sitemapUrl = (string) $sitemapLocationElement;
 
@@ -314,9 +326,9 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         $this->logger->notice('detect URLs in TXT file using regular expression: '.$regularExpressionToDetectUrl);
 
         $matches = [];
-        \preg_match_all($regularExpressionToDetectUrl, $this->buffer, $matches);
+        preg_match_all($regularExpressionToDetectUrl, $this->buffer, $matches);
 
-        $this->logger->notice(\sprintf('detected %d URLs in TXT file', \count($matches[1])));
+        $this->logger->notice(sprintf('detected %d URLs in TXT file', \count($matches[1])));
 
         $this->addUrls(...$matches[1]);
     }

@@ -14,6 +14,7 @@ class ProcessorTest extends TestCase
     {
         $config = new Config();
         $config->targetFile = '/some/unExisting/path/to/a/file/with/urls.txt';
+        $config->timeout = 1;
 
         $processor = new Processor($config);
         $processor->run();

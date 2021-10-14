@@ -37,6 +37,9 @@ class Result
      */
     private float $started;
 
+    /**
+     * @var array<int|string, int>
+     */
     private array $statusCodes = [];
 
     /**
@@ -47,7 +50,7 @@ class Result
     public function __construct(Config $config)
     {
         $this->config = $config;
-        $this->started = \microtime(true);
+        $this->started = microtime(true);
     }
 
     /**
@@ -68,25 +71,15 @@ class Result
         $this->redirectedUrls[$url] = $newLocation;
     }
 
-    /**
-     * @param int|string $statusCode
-     */
-    public function addBrokenUrl(string $url, $statusCode): void
+    public function addBrokenUrl(string $url, int|string $statusCode): void
     {
-        \assert(\is_int($statusCode) || \is_string($statusCode));
-
         $this->brokenUrls[$url] = $statusCode;
 
         $this->addStatusCode($statusCode);
     }
 
-    /**
-     * @param int|string $statusCode
-     */
-    public function addStatusCode($statusCode): void
+    public function addStatusCode(int|string $statusCode): void
     {
-        \assert(\is_int($statusCode) || \is_string($statusCode));
-
         $this->bumpStatusCode($statusCode);
     }
 
@@ -95,6 +88,9 @@ class Result
         return $this->totalData;
     }
 
+    /**
+     * @return array<string, int|string>
+     */
     public function getBrokenUrls(): array
     {
         return $this->brokenUrls;
@@ -105,23 +101,32 @@ class Result
         return \count($this->finishedUrls);
     }
 
+    /**
+     * @param array<int, array<int, string>> $headers
+     */
     public function countAdditionalHeaders(array $headers): void
     {
-        if (\is_array($this->additionalResponseHeadersToCount) && \count($this->additionalResponseHeadersToCount) > 0) {
+        if (isset($this->additionalResponseHeadersToCount)) {
             foreach ($this->additionalResponseHeadersToCount as $additionalHeader) {
                 if (isset($headers[$additionalHeader])) {
-                    $headerLabel = \sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
+                    $headerLabel = sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
                     $this->bumpStatusCode($headerLabel);
                 }
             }
         }
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function getRedirectedUrls(): array
     {
         return $this->redirectedUrls;
     }
 
+    /**
+     * @return array<int|string, int>
+     */
     public function getStatusCodes(): array
     {
         return $this->statusCodes;
@@ -134,14 +139,17 @@ class Result
 
     public function getDurationLabel(): string
     {
-        return \sprintf('%6.2f sec.', \microtime(true) - $this->started);
+        return sprintf('%6.2f sec.', microtime(true) - $this->started);
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function getStatusCodeInformation(): array
     {
         $codeInfo = [];
         foreach ($this->getStatusCodes() as $code => $count) {
-            $codeInfo[] = \sprintf('%s: %d', $code, $count);
+            $codeInfo[] = sprintf('%s: %d', $code, $count);
         }
 
         return $codeInfo;
@@ -154,13 +162,10 @@ class Result
 
     public function getMemoryUsageLabel(): string
     {
-        return \sprintf('%5.1f MB', \memory_get_usage(true) / 1048576);
+        return sprintf('%5.1f MB', memory_get_usage(true) / 1048576);
     }
 
-    /**
-     * @param int|string $statusCode
-     */
-    private function bumpStatusCode($statusCode): void
+    private function bumpStatusCode(int|string $statusCode): void
     {
         $this->statusCodes[$statusCode] = $this->statusCodes[$statusCode] ?? 0;
         ++$this->statusCodes[$statusCode];

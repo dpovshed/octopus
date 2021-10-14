@@ -26,7 +26,7 @@ class TablePresenter implements Presenter
     public function renderStatistics(Result $result, int $totalNumberOfUrls): void
     {
         $status = [
-            'Memory' => \sprintf('%5.1fMB', \memory_get_usage(true) / 1048576),
+            'Memory' => sprintf('%5.1fMB', memory_get_usage(true) / 1048576),
             'Time' => $result->getDurationLabel(),
             'Queued' => $result->getNumberOfRemainingUrlsToProcess($totalNumberOfUrls),
             'Running' => $result->config->concurrency,
@@ -34,15 +34,18 @@ class TablePresenter implements Presenter
         ];
 
         $rows = $status + $result->getStatusCodes();
-        $tableHeaders = \array_keys($rows);
+        $tableHeaders = array_keys($rows);
 
-        $tableKeyForHeaders = \md5(\implode(', ', $tableHeaders));
+        $tableKeyForHeaders = md5(implode(', ', $tableHeaders));
 
         $table = $this->tables[$tableKeyForHeaders] ?? $this->tables[$tableKeyForHeaders] = $this->getTable($tableHeaders);
 
         $table->appendRow($rows);
     }
 
+    /**
+     * @param array<int, int|string> $tableHeaders
+     */
     private function getTable(array $tableHeaders): Table
     {
         $table = new Table($this->output->section());

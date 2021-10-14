@@ -103,7 +103,7 @@ class RunOctopusCommand extends Command
         $this->addOption(self::COMMAND_OPTION_TIMEOUT, null, InputOption::VALUE_OPTIONAL, 'Timeout for a request, in seconds. Defaults to '.Config::TIMEOUT_DEFAULT);
         $this->addOption(self::COMMAND_OPTION_TIMER_UI, null, InputOption::VALUE_OPTIONAL, 'How often to update current statistics in the UserInterface. Defaults to '.Config::TIMER_UI_DEFAULT);
         $this->setHelp(
-            \sprintf(
+            sprintf(
                 'Usage:
 <info> - php application.php examples/sitemap-wiki.xml</info>
 using a specific concurrency:
@@ -149,10 +149,10 @@ using a specific concurrency:
 
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
-            $config->additionalResponseHeadersToCount = \explode(',', $additionalResponseHeadersToCount);
+            $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
             $this->getLogger()->notice('Keep track of additional response headers: '.$additionalResponseHeadersToCount);
         }
-        if (\is_numeric($this->input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
+        if (is_numeric($this->input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
             $config->concurrency = (int) $this->input->getOption(self::COMMAND_OPTION_CONCURRENCY);
             $this->getLogger()->notice('Using concurrency: '.$config->concurrency);
         }
@@ -183,11 +183,11 @@ using a specific concurrency:
             $config->targetType = $this->input->getOption(self::COMMAND_OPTION_TARGET_TYPE);
             $this->getLogger()->notice('Source file format: '.$config->targetType);
         }
-        if (\is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
+        if (is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
             $config->timeout = (float) $this->input->getOption(self::COMMAND_OPTION_TIMEOUT);
             $this->getLogger()->notice('Using per-request timeout: '.$config->timeout);
         }
-        if (\is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMER_UI))) {
+        if (is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMER_UI))) {
             $config->timerUI = (float) $this->input->getOption(self::COMMAND_OPTION_TIMER_UI);
             $this->getLogger()->notice('Using timerUI refresh rate: '.$config->timerUI);
         }
@@ -203,17 +203,17 @@ using a specific concurrency:
             return;
         }
 
-        \ksort($statusCodes);
+        ksort($statusCodes);
         $rowColumnSpan = ['colspan' => \count($statusCodes)];
 
         $table = new Table($this->output);
         $table->setHeaders(
             [
                 [new TableCell('Crawling summary for: '.$processor->config->targetFile, $rowColumnSpan)],
-                \array_keys($statusCodes),
+                array_keys($statusCodes),
             ]
         );
-        $table->addRow(\array_values($statusCodes));
+        $table->addRow(array_values($statusCodes));
         $table->addRow(new TableSeparator());
 
         $table->addRows(
@@ -244,21 +244,21 @@ using a specific concurrency:
     {
         $numberOfSeconds = $this->crawlingEndedDateTime->getTimestamp() - $this->crawlingStartedDateTime->getTimestamp();
 
-        return \sprintf('%d seconds', $numberOfSeconds);
+        return sprintf('%d seconds', $numberOfSeconds);
     }
 
     private function outputBrokenUrls(Processor $processor, string $outputDestination): void
     {
         $content = [];
         foreach ($processor->result->getBrokenUrls() as $url => $reason) {
-            $label = \sprintf('%s: %s', $reason, $url);
-            $this->getLogger()->debug(\sprintf('broken URL: %s', $label));
+            $label = sprintf('%s: %s', $reason, $url);
+            $this->getLogger()->debug(sprintf('broken URL: %s', $label));
             $content[] = $label;
         }
 
-        \file_put_contents(
+        file_put_contents(
             $outputDestination.\DIRECTORY_SEPARATOR.'broken.txt',
-            \implode(\PHP_EOL, $content)
+            implode(\PHP_EOL, $content)
         );
     }
 }
