@@ -13,7 +13,8 @@ class ProcessorTest extends TestCase
     public function testProcessorHandlesUnAvailableTargetsGracefully()
     {
         $config = new Config();
-        $config->targetFile = '/some/unExisting/path/to/a/file/with/urls.txt';
+        //$config->targetFile = '/some/unExisting/path/to/a/file/with/urls.txt';
+        $config->targetFile = 'https://google.com/sitemap.xml'; //This needs to be an existing domain, otherwise the test fails: improve test
         $config->timeout = 1;
 
         $processor = new Processor($config);

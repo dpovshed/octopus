@@ -145,30 +145,30 @@ using a specific concurrency:
     {
         $config = new Config();
         $config->targetFile = $this->input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
-        $this->getLogger()->notice('Loading URLs from Sitemap: '.$config->targetFile);
+        $this->getLogger()->notice('loading URLs from Sitemap: '.$config->targetFile);
 
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
-            $this->getLogger()->notice('Keep track of additional response headers: '.$additionalResponseHeadersToCount);
+            $this->getLogger()->notice('keep track of additional response headers: '.$additionalResponseHeadersToCount);
         }
         if (is_numeric($this->input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
             $config->concurrency = (int) $this->input->getOption(self::COMMAND_OPTION_CONCURRENCY);
-            $this->getLogger()->notice('Using concurrency: '.$config->concurrency);
+            $this->getLogger()->notice('use concurrency: '.$config->concurrency);
         }
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS))) {
             $followRedirectsValue = $this->input->getOption(self::COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS);
             $config->followRedirects = $followRedirectsValue === 'true';
-            $this->getLogger()->notice('Follow HTTP redirects: '.$followRedirectsValue);
+            $this->getLogger()->notice('follow HTTP redirects: '.$followRedirectsValue);
         }
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_USER_AGENT))) {
             $userAgentValue = $this->input->getOption(self::COMMAND_OPTION_USER_AGENT);
             $config->requestHeaders[$config::REQUEST_HEADER_USER_AGENT] = $userAgentValue;
-            $this->getLogger()->notice('Use UserAgent for issued requests: '.$userAgentValue);
+            $this->getLogger()->notice('use UserAgent for issued requests: '.$userAgentValue);
         }
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_PRESENTER))) {
             $config->presenter = $this->input->getOption(self::COMMAND_OPTION_PRESENTER);
-            $this->getLogger()->notice('Using Presenter: '.$config->presenter);
+            $this->getLogger()->notice('use Presenter: '.$config->presenter);
 
             if ($config->presenter === TablePresenter::class) {
                 $this->getLogger()->notice('Instantiate Presenter to be able to inject output interface');
@@ -177,19 +177,19 @@ using a specific concurrency:
         }
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_REQUEST_TYPE))) {
             $config->requestType = $this->input->getOption(self::COMMAND_OPTION_REQUEST_TYPE);
-            $this->getLogger()->notice('Using request type: '.$config->requestType);
+            $this->getLogger()->notice('use request type: '.$config->requestType);
         }
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_TARGET_TYPE))) {
             $config->targetType = $this->input->getOption(self::COMMAND_OPTION_TARGET_TYPE);
-            $this->getLogger()->notice('Source file format: '.$config->targetType);
+            $this->getLogger()->notice('source file format: '.$config->targetType);
         }
         if (is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMEOUT))) {
             $config->timeout = (float) $this->input->getOption(self::COMMAND_OPTION_TIMEOUT);
-            $this->getLogger()->notice('Using per-request timeout: '.$config->timeout);
+            $this->getLogger()->notice('use per-request timeout: '.$config->timeout);
         }
         if (is_numeric($this->input->getOption(self::COMMAND_OPTION_TIMER_UI))) {
             $config->timerUI = (float) $this->input->getOption(self::COMMAND_OPTION_TIMER_UI);
-            $this->getLogger()->notice('Using timerUI refresh rate: '.$config->timerUI);
+            $this->getLogger()->notice('use timerUI refresh rate: '.$config->timerUI);
         }
 
         return $config;

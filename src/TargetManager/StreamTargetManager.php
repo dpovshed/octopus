@@ -7,6 +7,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use React\Http\Message\ResponseException;
 use React\Promise\PromiseInterface;
 use React\Stream\ReadableStreamInterface;
 use React\Stream\Util;
@@ -57,7 +58,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     private int $numberOfUrls = 0;
 
     /**
-     * Flag to indicated whether this TargetManager has been initialized: were URLs loaded.
+     * Flag to indicated whether this TargetManager has been initialized: were URLs loaded?
      */
     private bool $initialized = false;
 
@@ -65,7 +66,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     {
         $this->logger = $logger ?? new NullLogger();
 
-        $promise->then(function (ResponseInterface $response) {
+        $promise->then(function (ResponseInterface $response): void {
             $input = $response->getBody();
             \assert($input instanceof StreamInterface);
             \assert($input instanceof ReadableStreamInterface);
@@ -80,9 +81,24 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
             }
 
             $this->setInput($input);
-        }, function (\Exception $exception) {
-            $this->logger->critical((string) $exception);
-        });
+        },
+            function (ResponseException $responseException): void {
+                $this->logger->critical('caught ResponseException while trying to fulfill promise: '.(string) $responseException);
+                $this->close();
+            },
+            function (\Exception $exception): void {
+                $this->logger->critical('caught exception while trying to fulfill promise: '.(string) $exception);
+            });
+    }
+
+    public function isReadable(): bool
+    {
+        return $this->isClosed() === false;
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->closed;
     }
 
     public function close(): void
@@ -121,11 +137,6 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     public function isInitialized(): bool
     {
         return $this->initialized;
-    }
-
-    public function isReadable(): bool
-    {
-        return !$this->closed;
     }
 
     public function pause(): void

@@ -85,6 +85,12 @@ class Processor
     public function getPeriodicTimerCallback(): callable
     {
         return function (): void {
+            if ($this->getTargetManager()->isClosed()) {
+                $this->logger->info('TargetManager closed: stop!');
+                $this->getLoop()->stop();
+
+                return;
+            }
             if ($this->getTargetManager()->isInitialized() && $this->isCompleted()) {
                 $this->logger->info('no more URLs to process: stop!');
                 $this->getLoop()->stop();
@@ -138,7 +144,7 @@ class Processor
 
     private function getStreamForUrl(string $url): PromiseInterface
     {
-        $this->logger->info('acquire stream for URL '.$url);
+        $this->logger->info('acquire stream for URL "{url}"', ['url' => $url]);
         $browser = new Browser($this->getLoop());
 
         return $browser->requestStreaming('GET', $url);
@@ -146,7 +152,7 @@ class Processor
 
     private function getStreamForLocalFile(string $filename): PromiseInterface
     {
-        $this->logger->info('acquire stream for local file '.$filename);
+        $this->logger->info('acquire stream for local file "{filename}"', ['filename' => $filename]);
 
         $filesystem = Filesystem::create($this->getLoop());
         $file = $filesystem->file($filename);
@@ -232,6 +238,7 @@ class Processor
     {
         $browser = new Browser($this->getLoop());
         $browser = $browser->withTimeout($this->config->timeout);
+        $browser = $browser->withRejectErrorResponse(true);
 
         return $browser->withFollowRedirects(false); // We are using own mechanism of following redirects to correctly count these.
     }
