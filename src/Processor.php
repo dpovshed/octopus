@@ -10,7 +10,7 @@ use Octopus\TargetManager\StreamTargetManager;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use React\EventLoop\Factory as EventLoopFactory;
+use React\EventLoop\Loop;
 use React\EventLoop\LoopInterface;
 use React\Filesystem\Filesystem;
 use React\Http\Browser;
@@ -54,7 +54,6 @@ class Processor
 
     private Browser $browser;
     private LoggerInterface $logger;
-    private LoopInterface $loop;
     private StreamTargetManager $targetManager;
     private Transformer $transformer;
     private bool $followRedirects = false;
@@ -85,12 +84,6 @@ class Processor
     public function getPeriodicTimerCallback(): callable
     {
         return function (): void {
-            if ($this->getTargetManager()->isClosed()) {
-                $this->logger->info('TargetManager closed: stop!');
-                $this->getLoop()->stop();
-
-                return;
-            }
             if ($this->getTargetManager()->isInitialized() && $this->isCompleted()) {
                 $this->logger->info('no more URLs to process: stop!');
                 $this->getLoop()->stop();
@@ -127,7 +120,7 @@ class Processor
 
     private function getLoop(): LoopInterface
     {
-        return $this->loop ??= EventLoopFactory::create();
+        return Loop::get();
     }
 
     private function getTargetManager(): StreamTargetManager
@@ -195,6 +188,8 @@ class Processor
 
     private function instantiateNewTransformer(): Transformer
     {
+        $this->logger->debug('instantiate new Transformer to process received data');
+
         $transformer = new Transformer($this->config->concurrency, $this->getLoadUrlUsingBrowserCallback());
         $transformer->on('data', function ($data): void {
             $this->logger->debug('Transformer received data event');

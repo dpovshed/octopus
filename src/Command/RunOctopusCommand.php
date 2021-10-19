@@ -145,7 +145,7 @@ using a specific concurrency:
     {
         $config = new Config();
         $config->targetFile = $this->input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
-        $this->getLogger()->notice('loading URLs from Sitemap: '.$config->targetFile);
+        $this->getLogger()->notice('loading URLs from Sitemap: "{targetFile}"', ['targetFile' => $config->targetFile]);
 
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);

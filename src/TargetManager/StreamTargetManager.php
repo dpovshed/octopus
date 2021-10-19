@@ -7,7 +7,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use React\Http\Message\ResponseException;
 use React\Promise\PromiseInterface;
 use React\Stream\ReadableStreamInterface;
 use React\Stream\Util;
@@ -66,29 +65,10 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     {
         $this->logger = $logger ?? new NullLogger();
 
-        $promise->then(function (ResponseInterface $response): void {
-            $input = $response->getBody();
-            \assert($input instanceof StreamInterface);
-            \assert($input instanceof ReadableStreamInterface);
-
-            if (!$input->isReadable()) {
-                $this->logger->info('Input is not readable, closing');
-
-                $this->close();
-                $input->close();
-
-                return;
-            }
-
-            $this->setInput($input);
-        },
-            function (ResponseException $responseException): void {
-                $this->logger->critical('caught ResponseException while trying to fulfill promise: '.(string) $responseException);
-                $this->close();
-            },
-            function (\Exception $exception): void {
-                $this->logger->critical('caught exception while trying to fulfill promise: '.(string) $exception);
-            });
+        $promise->then(
+            $this->getOnFulfilledCallback(),
+            $this->getOnRejectedCallback(),
+        );
     }
 
     public function isReadable(): bool
@@ -165,6 +145,28 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         return $destination;
     }
 
+    private function getOnFulfilledCallback(): callable
+    {
+        return function (ResponseInterface $response): void {
+            $input = $response->getBody();
+            \assert($input instanceof StreamInterface);
+            \assert($input instanceof ReadableStreamInterface);
+
+            $this->logger->debug('checking input of class "{inputClass}"', ['inputClass' => \get_class($input)]);
+
+            if (!$input->isReadable()) {
+                $this->logger->info('input is not readable, closing');
+
+                $this->close();
+                $input->close();
+
+                return;
+            }
+
+            $this->setInput($input);
+        };
+    }
+
     private function setInput(ReadableStreamInterface $input): void
     {
         $this->input = $input;
@@ -233,8 +235,6 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         }
         if ($this->isXmlSitemap($xmlElement)) {
             $this->processSitemapElement($xmlElement);
-
-            return;
         }
     }
 
@@ -362,6 +362,14 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     private function getHandleCloseCallback(): callable
     {
         return function (): void {
+            $this->close();
+        };
+    }
+
+    private function getOnRejectedCallback(): callable
+    {
+        return function ($rejectionReason): void {
+            $this->logger->critical('promise was rejected: '.(string) $rejectionReason);
             $this->close();
         };
     }
