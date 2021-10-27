@@ -2,11 +2,6 @@
   "name": "octopoda/octopus",
   "description": "PHP Sitemap crawler",
   "license": "MIT",
-  "prefer-stable": true,
-  "minimum-stability": "dev",
-  "config": {
-    "sort-packages": true
-  },
   "require": {
     "php": "^8.0",
     "ext-simplexml": "*",
@@ -23,6 +18,9 @@
     "phpunit/phpunit": "@stable",
     "roave/security-advisories": "dev-master"
   },
+  "config": {
+    "sort-packages": true
+  },
   "autoload": {
     "psr-4": {
       "Octopus\\": "src/"
@@ -32,5 +30,7 @@
     "psr-4": {
       "Octopus\\Test\\": "tests/"
     }
-  }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }
