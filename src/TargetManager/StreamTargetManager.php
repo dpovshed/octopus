@@ -71,6 +71,28 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         );
     }
 
+    private function getOnFulfilledCallback(): callable
+    {
+        return function (ResponseInterface $response): void {
+            $input = $response->getBody();
+            \assert($input instanceof StreamInterface);
+            \assert($input instanceof ReadableStreamInterface);
+
+            $this->logger->debug('checking input of class "{inputClass}"', ['inputClass' => \get_class($input)]);
+
+            if (!$input->isReadable()) {
+                $this->logger->info('input is not readable, closing');
+
+                $this->close();
+                $input->close();
+
+                return;
+            }
+
+            $this->setInput($input);
+        };
+    }
+
     public function isReadable(): bool
     {
         return $this->isClosed() === false;
@@ -96,84 +118,13 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         $this->removeAllListeners();
     }
 
-    public function addUrl(string $url): void
-    {
-        if (filter_var($url, \FILTER_VALIDATE_URL) === false) {
-            $this->logger->debug('skip invalid URL: '.$url);
-
-            return;
-        }
-
-        ++$this->numberOfUrls;
-        $this->logger->debug('emitting URL: '.$url);
-        $this->emit('data', [$url]);
-    }
-
-    public function getNumberOfUrls(): int
-    {
-        return $this->numberOfUrls;
-    }
-
-    public function isInitialized(): bool
-    {
-        return $this->initialized;
-    }
-
-    public function pause(): void
-    {
-        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
-
-        $this->input->pause();
-    }
-
-    public function resume(): void
-    {
-        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
-
-        $this->input->resume();
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    public function pipe(WritableStreamInterface $destination, array $options = []): WritableStreamInterface
-    {
-        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
-
-        Util::pipe($this, $destination, $options);
-
-        return $destination;
-    }
-
-    private function getOnFulfilledCallback(): callable
-    {
-        return function (ResponseInterface $response): void {
-            $input = $response->getBody();
-            \assert($input instanceof StreamInterface);
-            \assert($input instanceof ReadableStreamInterface);
-
-            $this->logger->debug('checking input of class "{inputClass}"', ['inputClass' => \get_class($input)]);
-
-            if (!$input->isReadable()) {
-                $this->logger->info('input is not readable, closing');
-
-                $this->close();
-                $input->close();
-
-                return;
-            }
-
-            $this->setInput($input);
-        };
-    }
-
     private function setInput(ReadableStreamInterface $input): void
     {
         $this->input = $input;
         $this->input->on('data', $this->getHandleDataCallback());
         $this->input->on('end', $this->getHandleEndCallback());
         $this->input->on('error', $this->getHandleErrorCallback());
-        $this->input->on('close', $this->getHandleCloseCallback());
+        //$this->input->on('close', $this->getHandleCloseCallback()); When the Input closes, this does not mean this TargetManager should close, since that would cause it to stop...
     }
 
     private function getHandleDataCallback(): callable
@@ -323,6 +274,24 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         }
     }
 
+    public function addUrl(string $url): void
+    {
+        if (filter_var($url, \FILTER_VALIDATE_URL) === false) {
+            $this->logger->debug('skip invalid URL: '.$url);
+
+            return;
+        }
+
+        ++$this->numberOfUrls;
+        $this->logger->debug('emitting URL: '.$url);
+        $this->emit('data', [$url]);
+    }
+
+    public function getNumberOfUrls(): int
+    {
+        return $this->numberOfUrls;
+    }
+
     private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
     {
         $xmlRootElement = $xmlElement->getName();
@@ -359,17 +328,48 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         };
     }
 
-    private function getHandleCloseCallback(): callable
-    {
-        return function (): void {
-            $this->close();
-        };
-    }
-
     private function getOnRejectedCallback(): callable
     {
         return function ($rejectionReason): void {
             $this->logger->critical('promise was rejected: '.(string) $rejectionReason);
+            $this->close();
+        };
+    }
+
+    public function isInitialized(): bool
+    {
+        return $this->initialized;
+    }
+
+    public function pause(): void
+    {
+        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
+
+        $this->input->pause();
+    }
+
+    public function resume(): void
+    {
+        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
+
+        $this->input->resume();
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public function pipe(WritableStreamInterface $destination, array $options = []): WritableStreamInterface
+    {
+        $this->logger->debug(sprintf('received "%s" request', __FUNCTION__));
+
+        Util::pipe($this, $destination, $options);
+
+        return $destination;
+    }
+
+    private function getHandleCloseCallback(): callable
+    {
+        return function (): void {
             $this->close();
         };
     }
