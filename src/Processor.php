@@ -84,11 +84,20 @@ class Processor
     public function getPeriodicTimerCallback(): callable
     {
         return function (): void {
-            if ($this->getTargetManager()->isInitialized() && $this->isCompleted()) {
-                $this->logger->info('no more URLs to process: stop!');
+            if ($this->getTargetManager()->isClosed()) {
+                $this->logger->warning('TargetManager is closed: stop!');
                 $this->getLoop()->stop();
 
                 return;
+            }
+            if ($this->getTargetManager()->isInitialized()) {
+                $this->logger->debug('TargetManager is initialized...');
+                if ($this->isCompleted()) {
+                    $this->logger->info('no more URLs to process: stop!');
+                    $this->getLoop()->stop();
+
+                    return;
+                }
             }
 
             $this->getPresenter()->renderStatistics($this->result, $this->getTargetManager()->getNumberOfUrls());
