@@ -9,7 +9,7 @@
     "psr/log": "^1.1",
     "react/filesystem": "^0.1",
     "react/http": "^1.4",
-    "symfony/console": "^5.2",
+    "symfony/console": "^5.2 || ^6.0",
     "teapot/status-code": "^1.1"
   },
   "require-dev": {
@@ -19,7 +19,10 @@
     "roave/security-advisories": "dev-master"
   },
   "config": {
-    "sort-packages": true
+    "sort-packages": true,
+    "allow-plugins": {
+      "wyrihaximus/composer-update-bin-autoload-path": true
+    }
   },
   "autoload": {
     "psr-4": {
