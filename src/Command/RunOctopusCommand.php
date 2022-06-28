@@ -144,7 +144,9 @@ using a specific concurrency:
     private function determineConfiguration(): Config
     {
         $config = new Config();
-        $config->targetFile = $this->input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
+        $sitemapFile = $this->input->getArgument(self::COMMAND_ARGUMENT_SITEMAP_FILE);
+        \assert(\is_string($sitemapFile));
+        $config->targetFile = $sitemapFile;
         $this->getLogger()->notice('loading URLs from Sitemap: "{targetFile}"', ['targetFile' => $config->targetFile]);
 
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {

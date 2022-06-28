@@ -60,7 +60,7 @@ class Processor
     private Presenter $presenter;
 
     /**
-     * Use a local instance of the Loop
+     * Use a local instance of the Loop.
      *
      * Note that the singleton Loop::get() should not be used, since multiple Processors might be in use during batch
      * processing and would then use the same loop. After a Processor instance is done, the loop is stopped.
@@ -89,29 +89,6 @@ class Processor
         $this->getTargetManager()->pipe($this->getTransformer());
     }
 
-    private function isOutputDestinationRequired(): bool
-    {
-        return $this->isSaveEnabled() || $this->config->outputBroken;
-    }
-
-    private function isSaveEnabled(): bool
-    {
-        return $this->config->outputMode === Config::OUTPUT_MODE_SAVE;
-    }
-
-    private function touchOutputDestination(): void
-    {
-        $savePath = $this->config->outputDestination.\DIRECTORY_SEPARATOR;
-        if (!@mkdir($savePath) && !is_dir($savePath)) {
-            throw new Exception('Cannot create output directory: '.$savePath);
-        }
-    }
-
-    private function getLoop(): LoopInterface
-    {
-        return $this->loop ??= LoopFactory::create();
-    }
-
     public function getPeriodicTimerCallback(): callable
     {
         return function (): void {
@@ -133,6 +110,34 @@ class Processor
 
             $this->getPresenter()->renderStatistics($this->result, $this->getTargetManager()->getNumberOfUrls());
         };
+    }
+
+    public function run(): void
+    {
+        $this->getLoop()->run();
+    }
+
+    private function isOutputDestinationRequired(): bool
+    {
+        return $this->isSaveEnabled() || $this->config->outputBroken;
+    }
+
+    private function isSaveEnabled(): bool
+    {
+        return $this->config->outputMode === Config::OUTPUT_MODE_SAVE;
+    }
+
+    private function touchOutputDestination(): void
+    {
+        $savePath = $this->config->outputDestination.\DIRECTORY_SEPARATOR;
+        if (!@mkdir($savePath) && !is_dir($savePath)) {
+            throw new Exception('Cannot create output directory: '.$savePath);
+        }
+    }
+
+    private function getLoop(): LoopInterface
+    {
+        return $this->loop ??= LoopFactory::create();
     }
 
     private function getTargetManager(): StreamTargetManager
@@ -190,7 +195,11 @@ class Processor
 
         \assert(class_exists($presenterClass), "Indicated PresenterClass '$presenterClass' does not exist.");
 
-        return new $presenterClass($this->result);
+        $presenter = new $presenterClass($this->result);
+
+        \assert($presenter instanceof Presenter);
+
+        return $presenter;
     }
 
     private function getTransformer(): Transformer
@@ -357,10 +366,5 @@ class Processor
     private function getErrorMessage(array|Exception $errorOrException): string
     {
         return $errorOrException instanceof Exception ? $errorOrException->getMessage() : print_r($errorOrException, true);
-    }
-
-    public function run(): void
-    {
-        $this->getLoop()->run();
     }
 }

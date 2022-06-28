@@ -50,7 +50,7 @@ class TablePresenter implements Presenter
     {
         $table = new Table($this->output->section());
         $table->setHeaders($tableHeaders);
-        $table->render(); //Render once, then append rows to gradually populate the table
+        $table->render(); // Render once, then append rows to gradually populate the table
 
         return $table;
     }

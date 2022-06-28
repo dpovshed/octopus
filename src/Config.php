@@ -128,10 +128,8 @@ class Config
 
     /**
      * The class or Presenter instance used to present intermediate results.
-     *
-     * @var string|Presenter
      */
-    public $presenter = self::PRESENTER_DEFAULT;
+    public string|Presenter $presenter = self::PRESENTER_DEFAULT;
 
     /**
      * The headers used in the request to fetch a URL.
