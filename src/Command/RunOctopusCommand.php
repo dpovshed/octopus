@@ -152,7 +152,7 @@ using a specific concurrency:
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
-            $this->getLogger()->notice('keep track of additional response headers: '.$additionalResponseHeadersToCount);
+            $this->getLogger()->notice('keep track of "{additionalResponseHeadersToCountNumber}" additional response headers: "{additionalResponseHeadersToCount}"', ['additionalResponseHeadersToCountNumber' => count($config->additionalResponseHeadersToCount), 'additionalResponseHeadersToCount' => implode(', ', $config->additionalResponseHeadersToCount)]);
         }
         if (is_numeric($this->input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
             $config->concurrency = (int) $this->input->getOption(self::COMMAND_OPTION_CONCURRENCY);
