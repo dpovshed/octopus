@@ -10,4 +10,9 @@ phpstan:
 phpunit:
 	vendor/bin/phpunit
 
+rector:
+	./vendor/bin/rector process
+
 test: phpstan phpunit
+
+verifyCode: rector phpcs-fix phpstan

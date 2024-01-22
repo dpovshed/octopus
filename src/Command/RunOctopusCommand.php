@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Octopus\Command;
 
-use DateTime;
 use Octopus\Config;
 use Octopus\Presenter\TablePresenter;
 use Octopus\Processor;
@@ -22,63 +21,20 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class RunOctopusCommand extends Command
 {
-    /**
-     * @var string
-     */
-    private const COMMAND_ARGUMENT_SITEMAP_FILE = 'sitemap';
+    private const string COMMAND_ARGUMENT_SITEMAP_FILE = 'sitemap';
+    private const string COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT = 'additionalResponseHeadersToCount';
+    private const string COMMAND_OPTION_CONCURRENCY = 'concurrency';
+    private const string COMMAND_OPTION_PRESENTER = 'presenter';
+    private const string COMMAND_OPTION_TIMEOUT = 'timeout';
+    private const string COMMAND_OPTION_TIMER_UI = 'timerUI';
+    private const string COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS = 'followRedirects';
+    private const string COMMAND_OPTION_USER_AGENT = 'userAgent';
+    private const string COMMAND_OPTION_REQUEST_TYPE = 'requestType';
+    private const string COMMAND_OPTION_TARGET_TYPE = 'targetFormat';
+    private const string DATE_FORMAT = \DateTimeImmutable::W3C;
 
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT = 'additionalResponseHeadersToCount';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_CONCURRENCY = 'concurrency';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_PRESENTER = 'presenter';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_TIMEOUT = 'timeout';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_TIMER_UI = 'timerUI';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_FOLLOW_HTTP_REDIRECTS = 'followRedirects';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_USER_AGENT = 'userAgent';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_REQUEST_TYPE = 'requestType';
-
-    /**
-     * @var string
-     */
-    private const COMMAND_OPTION_TARGET_TYPE = 'targetFormat';
-
-    /**
-     * @var string
-     */
-    private const DATE_FORMAT = DateTime::W3C;
-
-    private DateTime $crawlingStartedDateTime;
-    private DateTime $crawlingEndedDateTime;
+    private \DateTimeImmutable $crawlingStartedDateTime;
+    private \DateTimeImmutable $crawlingEndedDateTime;
     private InputInterface $input;
     private LoggerInterface $logger;
     private ConsoleOutputInterface $output;
@@ -118,14 +74,14 @@ using a specific concurrency:
         \assert($output instanceof ConsoleOutputInterface);
         $this->input = $input;
         $this->output = $output;
-        $this->crawlingStartedDateTime = new DateTime();
+        $this->crawlingStartedDateTime = new \DateTimeImmutable();
         $this->getLogger()->debug('Starting Octopus Sitemap Crawler');
 
         $config = $this->determineConfiguration();
         $processor = new Processor($config, $this->getLogger());
         $processor->run();
 
-        $this->crawlingEndedDateTime = new DateTime();
+        $this->crawlingEndedDateTime = new \DateTimeImmutable();
 
         $this->renderResultsTable($processor);
 
@@ -152,7 +108,7 @@ using a specific concurrency:
         if (\is_string($this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT))) {
             $additionalResponseHeadersToCount = $this->input->getOption(self::COMMAND_OPTION_ADDITIONAL_RESPONSE_HEADERS_TO_COUNT);
             $config->additionalResponseHeadersToCount = explode(',', $additionalResponseHeadersToCount);
-            $this->getLogger()->notice('keep track of "{additionalResponseHeadersToCountNumber}" additional response headers: "{additionalResponseHeadersToCount}"', ['additionalResponseHeadersToCountNumber' => count($config->additionalResponseHeadersToCount), 'additionalResponseHeadersToCount' => implode(', ', $config->additionalResponseHeadersToCount)]);
+            $this->getLogger()->notice('keep track of "{additionalResponseHeadersToCountNumber}" additional response headers: "{additionalResponseHeadersToCount}"', ['additionalResponseHeadersToCountNumber' => \count($config->additionalResponseHeadersToCount), 'additionalResponseHeadersToCount' => implode(', ', $config->additionalResponseHeadersToCount)]);
         }
         if (is_numeric($this->input->getOption(self::COMMAND_OPTION_CONCURRENCY))) {
             $config->concurrency = (int) $this->input->getOption(self::COMMAND_OPTION_CONCURRENCY);

@@ -12,80 +12,21 @@ use Symfony\Component\Console\Exception\InvalidArgumentException;
  */
 class Config
 {
-    /**
-     * @var bool
-     */
-    public const FOLLOW_HTTP_REDIRECTS_DEFAULT = true;
-
-    /**
-     * @var string
-     */
-    public const OUTPUT_MODE_COUNT = 'count';
-
-    /**
-     * @var string
-     */
-    public const OUTPUT_MODE_SAVE = 'save';
-
-    /**
-     * @var string
-     */
-    public const PRESENTER_DEFAULT = EchoPresenter::class;
-
-    /**
-     * @var string
-     */
-    public const REQUEST_HEADER_USER_AGENT = 'User-Agent';
-
-    /**
-     * @var string
-     */
-    public const REQUEST_HEADER_USER_AGENT_DEFAULT = 'Octopus/1.0';
-
-    /**
-     * @var string
-     */
-    public const REQUEST_TYPE_GET = 'GET';
-
-    /**
-     * @var string
-     */
-    public const REQUEST_TYPE_HEAD = 'HEAD';
-
-    /**
-     * @var string
-     */
-    public const REQUEST_TYPE_DEFAULT = self::REQUEST_TYPE_HEAD;
-
-    /**
-     * @var string
-     */
-    public const TARGET_TYPE_XML = 'xml';
-
-    /**
-     * @var string
-     */
-    public const TARGET_TYPE_TXT = 'txt';
-
-    /**
-     * @var string
-     */
-    public const TARGET_TYPE_DEFAULT = self::TARGET_TYPE_XML;
-
-    /**
-     * @var int
-     */
-    public const CONCURRENCY_DEFAULT = 5;
-
-    /**
-     * @var float
-     */
-    public const TIMEOUT_DEFAULT = 10.0;
-
-    /**
-     * @var float
-     */
-    public const TIMER_UI_DEFAULT = 0.25;
+    final public const bool FOLLOW_HTTP_REDIRECTS_DEFAULT = true;
+    final public const string OUTPUT_MODE_COUNT = 'count';
+    final public const string OUTPUT_MODE_SAVE = 'save';
+    final public const string PRESENTER_DEFAULT = EchoPresenter::class;
+    final public const string REQUEST_HEADER_USER_AGENT = 'User-Agent';
+    final public const string REQUEST_HEADER_USER_AGENT_DEFAULT = 'Octopus/1.0';
+    final public const string REQUEST_TYPE_GET = 'GET';
+    final public const string REQUEST_TYPE_HEAD = 'HEAD';
+    final public const string REQUEST_TYPE_DEFAULT = self::REQUEST_TYPE_HEAD;
+    final public const string TARGET_TYPE_XML = 'xml';
+    final public const string TARGET_TYPE_TXT = 'txt';
+    final public const string TARGET_TYPE_DEFAULT = self::TARGET_TYPE_XML;
+    final public const int CONCURRENCY_DEFAULT = 5;
+    final public const float TIMEOUT_DEFAULT = 10.0;
+    final public const float TIMER_UI_DEFAULT = 0.25;
 
     /**
      * An array of some additional response headers to count.

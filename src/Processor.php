@@ -18,7 +18,6 @@ use React\Http\Message\ResponseException;
 use React\Promise\ExtendedPromiseInterface;
 use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
-use RuntimeException;
 use Teapot\StatusCode\Http;
 
 /**
@@ -28,17 +27,11 @@ class Processor
 {
     /**
      * Used for indicating a general error when no more details can be provided.
-     *
-     * @var string
      */
-    private const ERROR_TYPE_GENERAL = 'failure';
+    private const string ERROR_TYPE_GENERAL = 'failure';
+    private const string ERROR_TYPE_TIMEOUT = 'timeout';
 
-    /**
-     * @var string
-     */
-    private const ERROR_TYPE_TIMEOUT = 'timeout';
-
-    public Config$config;
+    public Config $config;
     public Result $result;
 
     /**
@@ -53,7 +46,7 @@ class Processor
     ];
 
     private Browser $browser;
-    private LoggerInterface $logger;
+    private readonly LoggerInterface $logger;
     private StreamTargetManager $targetManager;
     private Transformer $transformer;
     private bool $followRedirects = false;
@@ -131,7 +124,7 @@ class Processor
     {
         $savePath = $this->config->outputDestination.\DIRECTORY_SEPARATOR;
         if (!@mkdir($savePath) && !is_dir($savePath)) {
-            throw new Exception('Cannot create output directory: '.$savePath);
+            throw new \Exception('Cannot create output directory: '.$savePath);
         }
     }
 
@@ -326,7 +319,7 @@ class Processor
      */
     private function getOnRejectedCallback(string $url): callable
     {
-        return function (array|Exception $errorOrException) use ($url): void {
+        return function (array|\Exception $errorOrException) use ($url): void {
             $errorType = $this->getErrorType($errorOrException);
             $this->result->done($url);
             $this->result->addBrokenUrl($url, $errorType);
@@ -340,9 +333,9 @@ class Processor
     }
 
     /**
-     * @param array<int, string>|Exception $errorOrException
+     * @param array<int, string>|\Exception $errorOrException
      */
-    private function getErrorType(array|Exception $errorOrException): string
+    private function getErrorType(array|\Exception $errorOrException): string
     {
         if ($errorOrException instanceof TimeoutException) {
             return self::ERROR_TYPE_TIMEOUT;
@@ -353,18 +346,18 @@ class Processor
         }
 
         // This could help to distinguish UnexpectedValueException, InvalidArgumentException, etc.
-        if ($errorOrException instanceof RuntimeException) {
-            return \get_class($errorOrException);
+        if ($errorOrException instanceof \RuntimeException) {
+            return $errorOrException::class;
         }
 
         return self::ERROR_TYPE_GENERAL;
     }
 
     /**
-     * @param array<int, string>|Exception $errorOrException
+     * @param array<int, string>|\Exception $errorOrException
      */
-    private function getErrorMessage(array|Exception $errorOrException): string
+    private function getErrorMessage(array|\Exception $errorOrException): string
     {
-        return $errorOrException instanceof Exception ? $errorOrException->getMessage() : print_r($errorOrException, true);
+        return $errorOrException instanceof \Exception ? $errorOrException->getMessage() : print_r($errorOrException, true);
     }
 }

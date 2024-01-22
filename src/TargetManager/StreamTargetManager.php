@@ -11,7 +11,6 @@ use React\Promise\PromiseInterface;
 use React\Stream\ReadableStreamInterface;
 use React\Stream\Util;
 use React\Stream\WritableStreamInterface;
-use SimpleXMLElement;
 
 /**
  * The TargetManager reads URLs from a plain stream and emits them.
@@ -23,28 +22,28 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
      *
      * @var string
      */
-    private const XML_SITEMAP_NAMESPACE = 'http://www.sitemaps.org/schemas/sitemap/0.9';
+    private const string XML_SITEMAP_NAMESPACE = 'http://www.sitemaps.org/schemas/sitemap/0.9';
 
     /**
      * @see https://www.sitemaps.org/protocol.html#index
      *
      * @var string
      */
-    private const XML_SITEMAP_INDEX_ROOT_ELEMENT = 'sitemapindex';
+    private const string XML_SITEMAP_INDEX_ROOT_ELEMENT = 'sitemapindex';
 
     /**
      * @see https://www.sitemaps.org/protocol.html#index
      *
      * @var string
      */
-    private const XML_SITEMAP_ELEMENT = 'sitemap';
+    private const string XML_SITEMAP_ELEMENT = 'sitemap';
 
     /**
      * @see https://www.sitemaps.org/protocol.html
      *
      * @var string
      */
-    private const XML_SITEMAP_ROOT_ELEMENT = 'urlset';
+    private const string XML_SITEMAP_ROOT_ELEMENT = 'urlset';
 
     private string $buffer = '';
 
@@ -52,7 +51,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     private ReadableStreamInterface $input;
 
-    private LoggerInterface $logger;
+    private readonly LoggerInterface $logger;
 
     private int $numberOfUrls = 0;
 
@@ -152,7 +151,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
             \assert($input instanceof StreamInterface);
             \assert($input instanceof ReadableStreamInterface);
 
-            $this->logger->debug('checking input of class "{inputClass}"', ['inputClass' => \get_class($input)]);
+            $this->logger->debug('checking input of class "{inputClass}"', ['inputClass' => $input::class]);
 
             if (!$input->isReadable()) {
                 $this->logger->info('input is not readable, closing');
@@ -214,10 +213,10 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         return true;
     }
 
-    private function getSimpleXMLElement(string $data): ?SimpleXMLElement
+    private function getSimpleXMLElement(string $data): ?\SimpleXMLElement
     {
         try {
-            return @(new SimpleXMLElement($data));
+            return @(new \SimpleXMLElement($data));
         } catch (\Exception $exception) {
             $this->logger->notice('Failed instantiating SimpleXMLElement:'.$exception->getMessage());
         }
@@ -225,7 +224,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         return null;
     }
 
-    private function processSimpleXMLElement(SimpleXMLElement $xmlElement): void
+    private function processSimpleXMLElement(\SimpleXMLElement $xmlElement): void
     {
         if ($this->isXmlSitemapIndex($xmlElement)) {
             $this->processSitemapIndex($xmlElement);
@@ -237,14 +236,14 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         }
     }
 
-    private function isXmlSitemapIndex(SimpleXMLElement $xmlElement): bool
+    private function isXmlSitemapIndex(\SimpleXMLElement $xmlElement): bool
     {
         $xmlRootElement = $xmlElement->getName();
 
         return $xmlRootElement === self::XML_SITEMAP_INDEX_ROOT_ELEMENT;
     }
 
-    private function processSitemapIndex(SimpleXMLElement $sitemapIndexElement): void
+    private function processSitemapIndex(\SimpleXMLElement $sitemapIndexElement): void
     {
         $sitemapLocationElements = $this->getSitemapLocationElements($sitemapIndexElement);
         if ($sitemapLocationElements === null) {
@@ -255,9 +254,9 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     }
 
     /**
-     * @return SimpleXMLElement[]|null
+     * @return \SimpleXMLElement[]|null
      */
-    private function getSitemapLocationElements(SimpleXMLElement $xmlElement): ?array
+    private function getSitemapLocationElements(\SimpleXMLElement $xmlElement): ?array
     {
         $xmlElement->registerXPathNamespace('sitemap', self::XML_SITEMAP_NAMESPACE);
         $sitemapLocationElements = $xmlElement->xpath('//sitemap:loc');
@@ -266,7 +265,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     }
 
     /**
-     * @param SimpleXMLElement[] $sitemapLocationElements
+     * @param \SimpleXMLElement[] $sitemapLocationElements
      */
     private function processSitemapLocationElementsContainingSitemapUrls(array $sitemapLocationElements): void
     {
@@ -298,7 +297,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         return \is_string($data) ? $data : null;
     }
 
-    private function processSitemapElement(SimpleXMLElement $sitemapElement): void
+    private function processSitemapElement(\SimpleXMLElement $sitemapElement): void
     {
         $sitemapLocationElements = $this->getSitemapLocationElements($sitemapElement);
 
@@ -310,7 +309,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
     }
 
     /**
-     * @param SimpleXMLElement[] $sitemapLocationElements
+     * @param \SimpleXMLElement[] $sitemapLocationElements
      */
     private function processSitemapLocationElementsContainingUrls(array $sitemapLocationElements): void
     {
@@ -322,7 +321,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
         }
     }
 
-    private function isXmlSitemap(SimpleXMLElement $xmlElement): bool
+    private function isXmlSitemap(\SimpleXMLElement $xmlElement): bool
     {
         $xmlRootElement = $xmlElement->getName();
 

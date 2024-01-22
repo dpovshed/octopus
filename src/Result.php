@@ -35,7 +35,7 @@ class Result
     /**
      * Timestamp to track execution time.
      */
-    private float $started;
+    private readonly float $started;
 
     /**
      * @var array<int|string, int>
@@ -167,7 +167,7 @@ class Result
 
     private function bumpStatusCode(int|string $statusCode): void
     {
-        $this->statusCodes[$statusCode] = $this->statusCodes[$statusCode] ?? 0;
+        $this->statusCodes[$statusCode] ??= 0;
         ++$this->statusCodes[$statusCode];
     }
 }

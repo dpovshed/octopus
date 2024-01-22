@@ -11,7 +11,7 @@ use Symfony\Component\Console\Output\ConsoleOutputInterface;
 
 class TablePresenter implements Presenter
 {
-    private ConsoleOutputInterface $output;
+    private readonly ConsoleOutputInterface $output;
 
     /**
      * @var Table[]
