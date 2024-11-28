@@ -9,7 +9,6 @@ use Rector\Php74\Rector\Closure\ClosureToArrowFunctionRector;
 use Rector\Php74\Rector\FuncCall\ArrayKeyExistsOnPropertyRector;
 use Rector\Php74\Rector\Ternary\ParenthesizeNestedTernaryRector;
 use Rector\Php81\Rector\Array_\FirstClassCallableRector;
-use Rector\Php81\Rector\ClassConst\FinalizePublicClassConstantRector;
 use Rector\Php81\Rector\Property\ReadOnlyPropertyRector;
 use Rector\Php83\Rector\ClassConst\AddTypeToConstRector;
 use Rector\TypeDeclaration\Rector\ArrowFunction\AddArrowFunctionReturnTypeRector;
@@ -23,7 +22,6 @@ return static function (RectorConfig $rectorConfig) : void {
     $rectorConfig->rule(ArrayKeyExistsOnPropertyRector::class);
     $rectorConfig->rule(ParenthesizeNestedTernaryRector::class);
     $rectorConfig->rule(FirstClassCallableRector::class);
-    $rectorConfig->rule(FinalizePublicClassConstantRector::class);
     $rectorConfig->rule(ReadOnlyPropertyRector::class);
     $rectorConfig->rule(AddTypeToConstRector::class);
     $rectorConfig->rule(AddArrowFunctionReturnTypeRector::class);
@@ -33,6 +31,6 @@ return static function (RectorConfig $rectorConfig) : void {
         __DIR__ . '/src',
     ]);
 
-    $rectorConfig->phpVersion(PhpVersion::PHP_83);
+    $rectorConfig->phpVersion(PhpVersion::PHP_84);
     $rectorConfig->parallel(600);
 };
