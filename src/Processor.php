@@ -6,6 +6,7 @@ namespace Octopus;
 
 use Clue\React\Flux\Transformer;
 use Exception;
+use Octopus\Http\StatusCodes;
 use Octopus\TargetManager\StreamTargetManager;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -18,7 +19,6 @@ use React\Http\Message\ResponseException;
 use React\Promise\ExtendedPromiseInterface;
 use React\Promise\PromiseInterface;
 use React\Promise\Timer\TimeoutException;
-use Teapot\StatusCode\Http;
 
 /**
  * Processor core.
@@ -38,11 +38,11 @@ class Processor
      * @var array<int, int>
      */
     private array $httpRedirectionResponseCodes = [
-        Http::MOVED_PERMANENTLY,
-        Http::FOUND,
-        Http::SEE_OTHER,
-        Http::TEMPORARY_REDIRECT,
-        Http::PERMANENT_REDIRECT,
+        StatusCodes::MOVED_PERMANENTLY->value,
+        StatusCodes::FOUND->value,
+        StatusCodes::SEE_OTHER->value,
+        StatusCodes::TEMPORARY_REDIRECT->value,
+        StatusCodes::PERMANENT_REDIRECT->value,
     ];
 
     private Browser $browser;

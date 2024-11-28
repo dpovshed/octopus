@@ -9,8 +9,7 @@
     "psr/log": "^2.0 || ^3.0",
     "react/filesystem": "^0.1",
     "react/http": "^1.9",
-    "symfony/console": "^6.0 || ^7.0",
-    "teapot/status-code": "^2.2"
+    "symfony/console": "^6.0 || ^7.0"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "@stable",
