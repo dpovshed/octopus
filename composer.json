@@ -7,7 +7,7 @@
     "ext-simplexml": "*",
     "clue/reactphp-flux": "^1.4",
     "psr/log": "^2.0 || ^3.0",
-    "react/filesystem": "^0.1",
+    "react/filesystem": "^0.1 || ^0.2",
     "react/http": "^1.9",
     "symfony/console": "^6.0 || ^7.0"
   },
