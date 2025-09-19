@@ -60,7 +60,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
      */
     private bool $initialized = false;
 
-    public function __construct(PromiseInterface $promise, LoggerInterface $logger = null)
+    public function __construct(PromiseInterface $promise, ?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new NullLogger();
 

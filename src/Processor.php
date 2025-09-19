@@ -60,7 +60,7 @@ class Processor
      */
     private LoopInterface $loop;
 
-    public function __construct(Config $config, LoggerInterface $logger = null)
+    public function __construct(Config $config, ?LoggerInterface $logger = null)
     {
         $config->validate();
 
@@ -150,7 +150,7 @@ class Processor
         $this->logger->info('acquire stream for URL "{url}"', ['url' => $url]);
         $browser = new Browser($this->getLoop());
 
-        return $browser->requestStreaming('GET', $url);
+        return $browser->requestStreaming('GET', $url, $this->config->requestHeaders);
     }
 
     private function getStreamForLocalFile(string $filename): PromiseInterface
