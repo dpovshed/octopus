@@ -9,6 +9,6 @@ use Symfony\Component\Console\Application;
 
 $command = new RunOctopusCommand();
 $application = new Application();
-$application->add($command);
+$application->addCommands([$command]);
 $application->setDefaultCommand($command->getName(), true);
 $application->run();
