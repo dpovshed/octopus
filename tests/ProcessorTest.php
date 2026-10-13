@@ -126,6 +126,65 @@ class ProcessorTest extends TestCase
         $this->assertSame([], $processor->result->getBrokenUrls());
     }
 
+    #[DataProvider('localSitemaps')]
+    public function testLocalSitemapIsReadAndCrawlCompletes(string $contents, int $urlCount): void
+    {
+        $filename = tempnam(sys_get_temp_dir(), 'octopus-');
+        $this->assertNotFalse($filename);
+
+        try {
+            file_put_contents($filename, $contents);
+            $config = new Config();
+            $config->targetFile = $filename;
+            $config->outputBroken = false;
+            $config->timerUI = 0.001;
+            $config->presenter = $this->createStub(Presenter::class);
+            $config->additionalResponseHeadersToCount = ['X-Cache'];
+            $processor = new Processor($config);
+            $browser = $this->createMock(Browser::class);
+            $browser->expects($this->exactly($urlCount))->method('request')
+                ->with('HEAD', $this->anything(), $config->requestHeaders)
+                ->willReturn(resolve(new Response(200, ['X-Cache' => 'HIT'])));
+            (new \ReflectionProperty(Processor::class, 'browser'))->setValue($processor, $browser);
+            $loop = (new \ReflectionMethod(Processor::class, 'getLoop'))->invoke($processor);
+            $timedOut = false;
+            $loop->addTimer(1, static function () use ($loop, &$timedOut): void {
+                $timedOut = true;
+                $loop->stop();
+            });
+
+            $processor->run();
+
+            $this->assertFalse($timedOut);
+            $this->assertSame($urlCount, $processor->result->countFinishedUrls());
+            $this->assertSame([], $processor->result->getBrokenUrls());
+            $this->assertSame($urlCount, $processor->result->getStatusCodes()['X-Cache (HIT)'] ?? 0);
+        } finally {
+            unlink($filename);
+        }
+    }
+
+    public static function localSitemaps(): iterable
+    {
+        yield 'text' => ["https://example.com/first\nhttps://example.com/second\n", 2];
+        yield 'XML' => ['<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.com/first</loc></url><url><loc>https://example.com/second</loc></url></urlset>', 2];
+        yield 'empty' => ['', 0];
+    }
+
+    public function testMissingLocalSitemapClosesTargetManager(): void
+    {
+        $filename = tempnam(sys_get_temp_dir(), 'octopus-');
+        $this->assertNotFalse($filename);
+        unlink($filename);
+        $processor = $this->createProcessor($this->createStub(Browser::class));
+        $processor->config->targetFile = $filename;
+
+        $targets = (new \ReflectionMethod(Processor::class, 'getTargetManager'))->invoke($processor);
+
+        $this->assertTrue($targets->isClosed());
+        $this->assertSame(0, $processor->result->countFinishedUrls());
+    }
+
     public function testBrowserTimeoutIsRecordedWithoutPromiseTimerDependency(): void
     {
         $loop = LoopFactory::create();

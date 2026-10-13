@@ -102,16 +102,14 @@ class Result
     }
 
     /**
-     * @param array<int, array<int, string>> $headers
+     * @param string[][] $headers
      */
     public function countAdditionalHeaders(array $headers): void
     {
-        if (isset($this->additionalResponseHeadersToCount)) {
-            foreach ($this->additionalResponseHeadersToCount as $additionalHeader) {
-                if (isset($headers[$additionalHeader])) {
-                    $headerLabel = sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
-                    $this->bumpStatusCode($headerLabel);
-                }
+        foreach ($this->additionalResponseHeadersToCount as $additionalHeader) {
+            if (isset($headers[$additionalHeader])) {
+                $headerLabel = sprintf('%s (%s)', $additionalHeader, $headers[$additionalHeader][0]);
+                $this->bumpStatusCode($headerLabel);
             }
         }
     }

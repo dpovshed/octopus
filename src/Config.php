@@ -142,7 +142,7 @@ class Config
     /**
      * Validate passed parameters.
      *
-     * @throws invalidArgumentException()
+     * @throws InvalidArgumentException
      */
     public function validate(): void
     {

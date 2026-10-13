@@ -60,6 +60,9 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
      */
     private bool $initialized = false;
 
+    /**
+     * @param PromiseInterface<ResponseInterface> $promise
+     */
     public function __construct(PromiseInterface $promise, ?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new NullLogger();
@@ -176,7 +179,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     private function getHandleDataCallback(): callable
     {
-        return function ($data): void {
+        return function (string $data): void {
             $this->buffer .= $data;
         };
     }
@@ -359,7 +362,7 @@ class StreamTargetManager extends EventEmitter implements ReadableStreamInterfac
 
     private function getOnRejectedCallback(): callable
     {
-        return function ($rejectionReason): void {
+        return function (\Throwable $rejectionReason): void {
             $this->logger->critical('promise was rejected: '.(string) $rejectionReason);
             $this->close();
         };

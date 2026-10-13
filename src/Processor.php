@@ -12,10 +12,14 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use React\EventLoop\Factory as LoopFactory;
 use React\EventLoop\LoopInterface;
-use React\Filesystem\Filesystem;
 use React\Http\Browser;
+use React\Http\Message\Response;
 use React\Http\Message\ResponseException;
 use React\Promise\PromiseInterface;
+use React\Stream\ReadableResourceStream;
+
+use function React\Promise\reject;
+use function React\Promise\resolve;
 
 /**
  * Processor core.
@@ -135,6 +139,9 @@ class Processor
         return $this->targetManager ??= new StreamTargetManager($this->getStream(), $this->logger);
     }
 
+    /**
+     * @return PromiseInterface<ResponseInterface>
+     */
     private function getStream(): PromiseInterface
     {
         return filter_var($this->config->targetFile, \FILTER_VALIDATE_URL)
@@ -142,6 +149,9 @@ class Processor
             : $this->getStreamForLocalFile($this->config->targetFile);
     }
 
+    /**
+     * @return PromiseInterface<ResponseInterface>
+     */
     private function getStreamForUrl(string $url): PromiseInterface
     {
         $this->logger->info('acquire stream for URL "{url}"', ['url' => $url]);
@@ -150,14 +160,19 @@ class Processor
         return $browser->requestStreaming('GET', $url, $this->config->requestHeaders);
     }
 
+    /**
+     * @return PromiseInterface<ResponseInterface>
+     */
     private function getStreamForLocalFile(string $filename): PromiseInterface
     {
         $this->logger->info('acquire stream for local file "{filename}"', ['filename' => $filename]);
 
-        $filesystem = Filesystem::create($this->getLoop());
-        $file = $filesystem->file($filename);
+        $stream = @fopen($filename, 'rb');
+        if ($stream === false) {
+            return reject(new \RuntimeException('Cannot open sitemap file: '.$filename));
+        }
 
-        return $file->getContents();
+        return resolve(new Response(200, [], new ReadableResourceStream($stream, $this->getLoop())));
     }
 
     private function isCompleted(): bool
@@ -225,6 +240,9 @@ class Processor
         };
     }
 
+    /**
+     * @return PromiseInterface<ResponseInterface>
+     */
     private function loadUrlWithBrowser(string $url): PromiseInterface
     {
         return $this->getBrowser()->request($this->config->requestType, $url, $this->config->requestHeaders);
