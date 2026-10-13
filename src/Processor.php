@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Octopus;
 
 use Clue\React\Flux\Transformer;
-use Exception;
 use Octopus\Http\StatusCodes;
 use Octopus\TargetManager\StreamTargetManager;
 use Psr\Http\Message\ResponseInterface;
@@ -16,9 +15,7 @@ use React\EventLoop\LoopInterface;
 use React\Filesystem\Filesystem;
 use React\Http\Browser;
 use React\Http\Message\ResponseException;
-use React\Promise\ExtendedPromiseInterface;
 use React\Promise\PromiseInterface;
-use React\Promise\Timer\TimeoutException;
 
 /**
  * Processor core.
@@ -223,19 +220,14 @@ class Processor
         return function (string $url): PromiseInterface {
             $promise = $this->loadUrlWithBrowser($url);
             $promise = $promise->then($this->getOnFulfilledCallback($url));
-            if ($promise instanceof ExtendedPromiseInterface) {
-                $promise = $promise->otherwise($this->getOnRejectedCallback($url));
-            }
 
-            return $promise;
+            return $promise->then(null, $this->getOnRejectedCallback($url));
         };
     }
 
     private function loadUrlWithBrowser(string $url): PromiseInterface
     {
-        $requestType = mb_strtolower($this->config->requestType);
-
-        return $this->getBrowser()->$requestType($url, $this->config->requestHeaders);
+        return $this->getBrowser()->request($this->config->requestType, $url, $this->config->requestHeaders);
     }
 
     private function getBrowser(): Browser
@@ -314,12 +306,9 @@ class Processor
         return $headers['Location'][0];
     }
 
-    /**
-     * Promise v1 and v2 reject with an array of Exceptions here, Promise v3 will use an Exception object instead.
-     */
     private function getOnRejectedCallback(string $url): callable
     {
-        return function (array|\Exception $errorOrException) use ($url): void {
+        return function (\Throwable $errorOrException) use ($url): void {
             $errorType = $this->getErrorType($errorOrException);
             $this->result->done($url);
             $this->result->addBrokenUrl($url, $errorType);
@@ -327,17 +316,18 @@ class Processor
             $this->logger->error('loading URL "{url}" resulted in error "{errorType}: {errorMessage}"', [
                 'url' => $url,
                 'errorType' => $errorType,
-                'errorMessage' => $this->getErrorMessage($errorOrException),
+                'errorMessage' => $errorOrException->getMessage(),
             ]);
         };
     }
 
-    /**
-     * @param array<int, string>|\Exception $errorOrException
-     */
-    private function getErrorType(array|\Exception $errorOrException): string
+    private function getErrorType(\Throwable $errorOrException): string
     {
-        if ($errorOrException instanceof TimeoutException) {
+        // shortcut: React HTTP exposes timeouts through messages, use a typed exception if it introduces one.
+        if ($errorOrException instanceof \RuntimeException && (
+            str_starts_with($errorOrException->getMessage(), 'Request timed out after ')
+            || str_ends_with($errorOrException->getMessage(), '(ETIMEDOUT)')
+        )) {
             return self::ERROR_TYPE_TIMEOUT;
         }
 
@@ -353,11 +343,4 @@ class Processor
         return self::ERROR_TYPE_GENERAL;
     }
 
-    /**
-     * @param array<int, string>|\Exception $errorOrException
-     */
-    private function getErrorMessage(array|\Exception $errorOrException): string
-    {
-        return $errorOrException instanceof \Exception ? $errorOrException->getMessage() : print_r($errorOrException, true);
-    }
 }
