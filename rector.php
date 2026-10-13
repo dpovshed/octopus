@@ -2,26 +2,21 @@
 
 declare(strict_types=1);
 
-use Rector\CodingStyle\Rector\ArrowFunction\StaticArrowFunctionRector;
 use Rector\Config\RectorConfig;
 use Rector\Php74\Rector\Assign\NullCoalescingOperatorRector;
 use Rector\Php74\Rector\Closure\ClosureToArrowFunctionRector;
 use Rector\Php74\Rector\FuncCall\ArrayKeyExistsOnPropertyRector;
 use Rector\Php74\Rector\Ternary\ParenthesizeNestedTernaryRector;
-use Rector\Php81\Rector\Array_\FirstClassCallableRector;
 use Rector\Php81\Rector\Property\ReadOnlyPropertyRector;
 use Rector\Php83\Rector\ClassConst\AddTypeToConstRector;
 use Rector\TypeDeclaration\Rector\ArrowFunction\AddArrowFunctionReturnTypeRector;
 use Rector\TypeDeclaration\Rector\ClassMethod\AddMethodCallBasedStrictParamTypeRector;
-use Rector\ValueObject\PhpVersion;
 
 return static function (RectorConfig $rectorConfig) : void {
-    $rectorConfig->rule(StaticArrowFunctionRector::class);
     $rectorConfig->rule(NullCoalescingOperatorRector::class);
     $rectorConfig->rule(ClosureToArrowFunctionRector::class);
     $rectorConfig->rule(ArrayKeyExistsOnPropertyRector::class);
     $rectorConfig->rule(ParenthesizeNestedTernaryRector::class);
-    $rectorConfig->rule(FirstClassCallableRector::class);
     $rectorConfig->rule(ReadOnlyPropertyRector::class);
     $rectorConfig->rule(AddTypeToConstRector::class);
     $rectorConfig->rule(AddArrowFunctionReturnTypeRector::class);
@@ -31,6 +26,5 @@ return static function (RectorConfig $rectorConfig) : void {
         __DIR__ . '/src',
     ]);
 
-    $rectorConfig->phpVersion(PhpVersion::PHP_84);
     $rectorConfig->parallel(600);
 };
